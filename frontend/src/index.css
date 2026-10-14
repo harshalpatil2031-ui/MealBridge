@@ -1,13 +1,13 @@
-@import "tailwindcss";
-
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+
+@import "tailwindcss";
 
 /* ─── Design Tokens ─────────────────────────────────────────── */
 :root {
-  --bg-primary:    #080d1a;
-  --bg-secondary:  #0d1528;
-  --bg-card:       #111827;
-  --bg-card-hover: #1a2235;
+  --bg-primary:    #0b1115;
+  --bg-secondary:  #111b1c;
+  --bg-card:       #17201f;
+  --bg-card-hover: #202a25;
 
   --orange:        #f97316;
   --orange-light:  #fb923c;
@@ -36,10 +36,29 @@ html { scroll-behavior: smooth; }
 
 body {
   font-family: 'Inter', sans-serif;
-  background: var(--bg-primary);
+  background: linear-gradient(145deg, #0b1115 0%, #0d1718 52%, #111a17 100%);
+  background-attachment: fixed;
   color: var(--text-primary);
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
+  isolation: isolate;
+}
+
+/* A quiet harvest-inspired glow and field texture shared by every route. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    radial-gradient(ellipse at 8% 8%, rgba(249,115,22,0.18), transparent 34%),
+    radial-gradient(ellipse at 92% 12%, rgba(16,185,129,0.15), transparent 32%),
+    radial-gradient(ellipse at 72% 88%, rgba(132,204,22,0.09), transparent 36%),
+    radial-gradient(rgba(226,232,210,0.075) 0.8px, transparent 0.8px);
+  background-size: auto, auto, auto, 38px 38px;
+  opacity: 0.8;
+  mask-image: linear-gradient(to bottom, #000 0%, rgba(0,0,0,0.72) 68%, transparent 100%);
 }
 
 /* ─── Scrollbar ──────────────────────────────────────────────── */

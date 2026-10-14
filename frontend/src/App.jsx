@@ -9,7 +9,7 @@ import './index.css'
 
 // Placeholder pages — will be replaced by real dashboards
 const ComingSoon = ({ page }) => (
-  <div style={{ minHeight: '100vh', background: 'var(--bg-primary)', display: 'flex',
+  <div style={{ minHeight: '100vh', background: 'transparent', display: 'flex',
     alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 16 }}>
     <div style={{ fontSize: '3rem' }}>🚧</div>
     <h2 style={{ fontFamily: 'Space Grotesk,sans-serif', fontSize: '1.6rem' }}>{page} Dashboard</h2>

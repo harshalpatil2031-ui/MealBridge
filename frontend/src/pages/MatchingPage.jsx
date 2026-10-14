@@ -355,7 +355,7 @@ export default function MatchingPage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg-primary)' }}>
+    <div style={{ minHeight: '100vh', background: 'transparent' }}>
 
       {/* Topbar */}
       <div style={{
