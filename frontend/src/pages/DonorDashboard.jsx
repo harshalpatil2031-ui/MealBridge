@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import ChatWidget from '../components/ChatWidget'
 import { predictSurplus } from '../data/surplusPrediction'
+import { StatusBadge } from '../components/DashboardLayout'
 
 /* ─── Mock Data ──────────────────────────────────────────────── */
 const mockUser = { name: 'Harshal Patil', org: 'Sunrise Hostel', role: 'donor' }
@@ -42,30 +43,6 @@ function Countdown({ deadline }) {
   return (
     <span style={{ color: urgent ? '#ef4444' : '#f97316', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
       ⏱ {m}m {s.toString().padStart(2, '0')}s
-    </span>
-  )
-}
-
-/* ─── Status Badge ───────────────────────────────────────────── */
-function StatusBadge({ status }) {
-  const map = {
-    PENDING:          { label: 'Pending',          color: '#fbbf24', bg: 'rgba(234,179,8,0.12)',   dot: '#fbbf24' },
-    MATCHED:          { label: 'Matched',           color: '#60a5fa', bg: 'rgba(59,130,246,0.12)',  dot: '#60a5fa' },
-    ACCEPTED:         { label: 'Accepted',          color: '#a78bfa', bg: 'rgba(139,92,246,0.12)', dot: '#a78bfa' },
-    RESCUE_TRIGGERED: { label: 'Rescue Active',     color: '#f87171', bg: 'rgba(239,68,68,0.12)',  dot: '#ef4444' },
-    RESCUED:          { label: 'Rescued ✓',         color: '#34d399', bg: 'rgba(16,185,129,0.12)', dot: '#10b981' },
-    FAILED:           { label: 'Failed',            color: '#94a3b8', bg: 'rgba(100,116,139,0.12)', dot: '#475569' },
-  }
-  const s = map[status] || map.PENDING
-  return (
-    <span style={{
-      display: 'inline-flex', alignItems: 'center', gap: 6,
-      padding: '4px 12px', borderRadius: 999,
-      background: s.bg, color: s.color,
-      fontSize: '0.75rem', fontWeight: 700
-    }}>
-      <span style={{ width: 6, height: 6, borderRadius: '50%', background: s.dot, display: 'inline-block' }} />
-      {s.label}
     </span>
   )
 }

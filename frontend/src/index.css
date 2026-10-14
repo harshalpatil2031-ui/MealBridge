@@ -148,6 +148,21 @@ h1,h2,h3,h4,h5 { font-family: 'Space Grotesk', sans-serif; line-height: 1.2; }
   box-shadow: 0 8px 30px rgba(16,185,129,0.5);
 }
 
+.btn-primary:disabled,
+.btn-secondary:disabled,
+.btn-green:disabled,
+.btn-blue:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+  transform: none;
+  box-shadow: none;
+}
+
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--orange-light);
+  outline-offset: 3px;
+}
+
 /* ─── Cards ──────────────────────────────────────────────────── */
 .glass-card {
   background: rgba(17,24,39,0.7);
@@ -302,7 +317,12 @@ h1,h2,h3,h4,h5 { font-family: 'Space Grotesk', sans-serif; line-height: 1.2; }
 .donation-actions .btn-secondary { border-color: rgba(59,130,246,.28); color: #93c5fd; background: rgba(59,130,246,.09); }.donation-actions .btn-secondary:hover { color: #dbeafe; border-color: rgba(59,130,246,.55); }
 .empty-state { padding: 36px; text-align: center; }.empty-state > span { font-size: 2rem; }.empty-state h3 { margin: 8px 0; }.empty-state p { color: #94a3b8; font-size: .85rem; }
 .pickup-list { overflow: hidden; }.pickup-row { display: grid; grid-template-columns: minmax(180px,1.4fr) minmax(100px,.7fr) minmax(110px,.7fr) minmax(150px,.8fr); gap: 16px; align-items: center; padding: 15px 20px; border-top: 1px solid var(--border); font-size: .8rem; }.pickup-row > div { display: grid; gap: 3px; }.pickup-row small { color: #94a3b8; }.pickup-header { border-top: 0; color: #64748b; font-size: .66rem; letter-spacing: .08em; font-weight: 800; }
-.status-badge { display: inline-flex; width: fit-content; align-items: center; padding: 5px 9px; border: 1px solid transparent; border-radius: 99px; font-size: .65rem; font-weight: 800; letter-spacing: .045em; white-space: nowrap; }.status-pending { color: #fbbf24; background: rgba(234,179,8,.1); border-color: rgba(234,179,8,.22); }.status-matched,.status-accepted { color: #60a5fa; background: rgba(59,130,246,.1); border-color: rgba(59,130,246,.22); }.status-rescue_triggered { color: #f87171; background: rgba(239,68,68,.11); border-color: rgba(239,68,68,.25); }.status-rescued,.status-collected { color: #34d399; background: rgba(16,185,129,.1); border-color: rgba(16,185,129,.24); }.status-failed { color: #cbd5e1; background: rgba(100,116,139,.18); border-color: rgba(100,116,139,.25); }
+.status-badge { display: inline-flex; width: fit-content; align-items: center; padding: 5px 9px; border: 1px solid transparent; border-radius: 99px; font-size: .65rem; font-weight: 800; letter-spacing: .045em; white-space: nowrap; }
+.status-pending { color: #fbbf24; background: rgba(234,179,8,.1); border-color: rgba(234,179,8,.22); }
+.status-matched,.status-accepted,.status-in_transit { color: #60a5fa; background: rgba(59,130,246,.1); border-color: rgba(59,130,246,.22); }
+.status-rescue_triggered { color: #f87171; background: rgba(239,68,68,.11); border-color: rgba(239,68,68,.25); }
+.status-rescued,.status-collected { color: #34d399; background: rgba(16,185,129,.1); border-color: rgba(16,185,129,.24); }
+.status-failed { color: #cbd5e1; background: rgba(100,116,139,.18); border-color: rgba(100,116,139,.25); }
 .compact-btn { justify-content: center; padding: 9px 13px; font-size: .73rem; white-space: nowrap; }.collected-label { color: #34d399; font-size: .76rem; }
 .rescue-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 14px; }.rescue-card { padding: 18px; border-color: rgba(239,68,68,.22); background: linear-gradient(145deg,rgba(70,28,34,.35),rgba(17,24,39,.72)); }
 .rescue-alert-title { display: flex; align-items: center; gap: 9px; padding-bottom: 13px; border-bottom: 1px solid rgba(239,68,68,.17); color: #fca5a5; font-size: .82rem; }.rescue-pulse { width: 7px; height: 7px; margin-left: auto; border-radius: 50%; background: #ef4444; animation: pulse-glow 1.6s infinite; }
@@ -352,22 +372,6 @@ h1,h2,h3,h4,h5 { font-family: 'Space Grotesk', sans-serif; line-height: 1.2; }
   .section { padding: 60px 0; }
 }
 
-/* ─── Status Badges ──────────────────────────────────────────── */
-.status-pending  { background: rgba(234,179,8,0.15);  color: #fbbf24; border: 1px solid rgba(234,179,8,0.3);  }
-.status-matched  { background: rgba(59,130,246,0.15); color: #60a5fa; border: 1px solid rgba(59,130,246,0.3); }
-.status-rescued  { background: rgba(16,185,129,0.15); color: #34d399; border: 1px solid rgba(16,185,129,0.3); }
-.status-rescue   { background: rgba(239,68,68,0.15);  color: #f87171; border: 1px solid rgba(239,68,68,0.3);  }
-
-.status-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 4px 12px;
-  border-radius: 999px;
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
 /* ─── Divider ────────────────────────────────────────────────── */
 .gradient-divider {
   height: 1px;
@@ -406,3 +410,13 @@ h1,h2,h3,h4,h5 { font-family: 'Space Grotesk', sans-serif; line-height: 1.2; }
 .map-route-summary { display: grid; gap: 3px; padding: 10px 12px; color: #64748b; background: rgba(8,13,26,.92); font-size: .68rem; }.map-route-summary strong { color: #e2e8f0; font-size: .77rem; }.map-route-summary b { color: #fb923c; padding: 0 4px; }.map-route-summary small { color: #94a3b8; }
 @media (max-width: 900px) { .matching-layout { grid-template-columns: minmax(0,1fr) !important; }.donation-map.compact { height: 300px; } }
 @media (max-width: 600px) { .donation-map.compact { height: 250px; } }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
