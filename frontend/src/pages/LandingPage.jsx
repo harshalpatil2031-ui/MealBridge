@@ -139,17 +139,14 @@ function StatCard({ value, label, icon, color }) {
 }
 
 /* ─── Team Member Card ───────────────────────────────────────── */
-function TeamCard({ name, role, emoji, color }) {
+function TeamCard({ name, color }) {
   return (
     <div className="glass-card" style={{ padding: '28px 24px', textAlign: 'center' }}>
       <div style={{
         width: 64, height: 64, borderRadius: '50%', margin: '0 auto 16px',
         background: `${color}18`, border: `2px solid ${color}40`,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: '1.8rem'
-      }}>{emoji}</div>
-      <div style={{ fontWeight: 700, fontSize: '1rem', marginBottom: 4 }}>{name}</div>
-      <div style={{ fontSize: '0.82rem', color: color, fontWeight: 600 }}>{role}</div>
+      }} />
+      <div style={{ fontWeight: 700, fontSize: '1rem' }}>{name}</div>
     </div>
   )
 }
@@ -486,10 +483,10 @@ export default function LandingPage() {
             </h2>
           </div>
           <div className="grid-4">
-            <TeamCard name="Harshal Patil" role="Team Lead · Full Stack" emoji="👨‍💻" color="#f97316" />
-            <TeamCard name="Team Member" role="Backend · AI/ML" emoji="🤖" color="#3b82f6" />
-            <TeamCard name="Team Member" role="Frontend · UI/UX" emoji="🎨" color="#10b981" />
-            <TeamCard name="Team Member" role="ML · Data Science" emoji="📊" color="#a78bfa" />
+            <TeamCard name="Harshal Patil" color="#f97316" />
+            <TeamCard name="Pratyusha Padwal" color="#3b82f6" />
+            <TeamCard name="Harshita Panjwani" color="#10b981" />
+            <TeamCard name="Nishad Kulkarni" color="#a78bfa" />
           </div>
         </div>
       </section>
