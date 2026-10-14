@@ -1,0 +1,43 @@
+# Node
+node_modules/
+dist/
+.cache/
+.vite/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+
+# Environment
+.env
+.env.local
+.env.production
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# ML Models
+*.pkl
+*.joblib
+
+# PPT extraction temp
+pptx_extracted/
+socithon_ppt.zip
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
