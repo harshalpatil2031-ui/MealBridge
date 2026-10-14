@@ -298,6 +298,13 @@ function ActiveDonationCard({ d, onHandover }) {
                 <span style={{ marginLeft: 'auto', fontSize: '0.75rem', color: '#34d399', fontWeight: 700 }}>Accepted ✓</span>
               </div>
             ))}
+            <Link to="/rescue" style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              padding: '10px', borderRadius: 'var(--radius-sm)', textDecoration: 'none',
+              background: 'rgba(249,115,22,0.1)', border: '1px solid rgba(249,115,22,0.3)',
+              color: '#fb923c', fontWeight: 700, fontSize: '0.85rem', marginTop: 4,
+              transition: 'all 0.2s'
+            }}>⚡ View Full Rescue Details →</Link>
           </div>
         </div>
       ) : (
