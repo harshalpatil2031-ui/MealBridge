@@ -433,7 +433,7 @@ export default function DonorDashboard() {
   const totalDonations = mockHistory.length + donations.length
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-primary)' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', background: 'transparent' }}>
       <Sidebar active="dashboard" />
 
       {/* Main */}
