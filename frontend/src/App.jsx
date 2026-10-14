@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import LandingPage from './pages/LandingPage'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
+import DonorDashboard from './pages/DonorDashboard'
 import './index.css'
 
 // Placeholder pages — will be replaced by real dashboards
@@ -22,7 +23,7 @@ export default function App() {
         <Route path="/"            element={<LandingPage />} />
         <Route path="/login"       element={<LoginPage />} />
         <Route path="/register"    element={<RegisterPage />} />
-        <Route path="/donor"       element={<ComingSoon page="Donor" />} />
+        <Route path="/donor"       element={<DonorDashboard />} />
         <Route path="/recipient"   element={<ComingSoon page="Recipient" />} />
         <Route path="/coordinator" element={<ComingSoon page="Coordinator" />} />
         <Route path="*"            element={<Navigate to="/" />} />
