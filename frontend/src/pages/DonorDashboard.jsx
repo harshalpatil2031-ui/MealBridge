@@ -1,23 +1,23 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import ChatWidget from '../components/ChatWidget'
+import { predictSurplus } from '../data/surplusPrediction'
 
 /* ─── Mock Data ──────────────────────────────────────────────── */
 const mockUser = { name: 'Harshal Patil', org: 'Sunrise Hostel', role: 'donor' }
 
 const mockActiveDonations = [
   {
-    id: 'D001', food: 'Cooked Meals', type: '🍛', qty: 80, aiEstimate: 75,
+    id: 'D001', food: 'Cooked Meals', type: '🍛', qty: 80,
     status: 'RESCUE_TRIGGERED', deadline: Date.now() + 47 * 60 * 1000,
     matched: 'City Shelter NGO', matchedFailed: true,
     rescue: { type: 'split', recipients: ['Asha Trust (50)', 'Hope Kitchen (30)'] },
-    confidence: 'High'
   },
   {
-    id: 'D002', food: 'Baked Goods', type: '🥖', qty: 40, aiEstimate: 35,
+    id: 'D002', food: 'Baked Goods', type: '🥖', qty: 40,
     status: 'MATCHED', deadline: Date.now() + 110 * 60 * 1000,
     matched: 'Green Hope NGO', matchedFailed: false,
-    rescue: null, confidence: 'Medium'
+    rescue: null
   },
 ]
 
@@ -76,6 +76,7 @@ function NewDonationModal({ onClose }) {
   const [submitted, setSubmitted] = useState(false)
   const [loading, setLoading] = useState(false)
   const up = f => e => setForm(p => ({ ...p, [f]: e.target.value }))
+  const prediction = predictSurplus('U-D01', form.food)
 
   const inputSt = {
     width: '100%', padding: '12px 14px',
@@ -141,16 +142,19 @@ function NewDonationModal({ onClose }) {
               <span style={{ fontSize: '1.4rem' }}>🤖</span>
               <div>
                 <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--orange-light)' }}>
-                  AI Surplus Estimate
+                  Historical Surplus Estimate
                 </div>
                 <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                  Based on your history: <strong style={{ color: 'var(--text-primary)' }}>~75 portions</strong> expected surplus today
+                  {form.food
+                    ? <>Based on 60 days of weekday history: <strong style={{ color: 'var(--text-primary)' }}>~{prediction.estimate} portions</strong> expected today</>
+                    : 'Select a food type to see your history-based estimate.'}
                 </div>
               </div>
               <div style={{
-                marginLeft: 'auto', background: 'rgba(16,185,129,0.15)', color: '#34d399',
+                marginLeft: 'auto', background: form.food ? 'rgba(16,185,129,0.15)' : 'rgba(255,255,255,0.06)',
+                color: form.food ? '#34d399' : 'var(--text-muted)',
                 padding: '3px 10px', borderRadius: 999, fontSize: '0.7rem', fontWeight: 700, whiteSpace: 'nowrap'
-              }}>High Confidence</div>
+              }}>{form.food ? `${prediction.confidence} Confidence` : 'Estimate'}</div>
             </div>
 
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -219,6 +223,7 @@ function NewDonationModal({ onClose }) {
 /* ─── Active Donation Card ───────────────────────────────────── */
 function ActiveDonationCard({ d, onHandover }) {
   const isRescue = d.status === 'RESCUE_TRIGGERED'
+  const prediction = predictSurplus('U-D01', d.food)
   return (
     <div style={{
       background: isRescue ? 'rgba(239,68,68,0.05)' : 'rgba(17,24,39,0.8)',
@@ -255,23 +260,39 @@ function ActiveDonationCard({ d, onHandover }) {
         </div>
       </div>
 
-      {/* AI Estimate bar */}
+      {/* History-based estimate and recent weekday samples */}
       <div style={{
         background: 'rgba(249,115,22,0.07)', border: '1px solid rgba(249,115,22,0.15)',
         borderRadius: 'var(--radius-sm)', padding: '10px 14px', marginBottom: 16,
         display: 'flex', alignItems: 'center', gap: 10
       }}>
-        <span>🤖</span>
+        <span>📊</span>
         <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-          AI Estimate: <strong style={{ color: 'var(--orange-light)' }}>~{d.aiEstimate} portions</strong>
+          History estimate: <strong style={{ color: 'var(--orange-light)' }}>~{prediction.estimate} portions</strong>
         </span>
         <span style={{
           marginLeft: 'auto', fontSize: '0.7rem', fontWeight: 700,
-          color: d.confidence === 'High' ? '#34d399' : '#fbbf24',
-          background: d.confidence === 'High' ? 'rgba(16,185,129,0.12)' : 'rgba(234,179,8,0.12)',
+          color: prediction.confidence === 'High' ? '#34d399' : prediction.confidence === 'Medium' ? '#fbbf24' : '#f87171',
+          background: prediction.confidence === 'High' ? 'rgba(16,185,129,0.12)' : prediction.confidence === 'Medium' ? 'rgba(234,179,8,0.12)' : 'rgba(239,68,68,0.12)',
           padding: '2px 10px', borderRadius: 999
-        }}>{d.confidence} Confidence</span>
+        }}>{prediction.confidence} Confidence · {prediction.sampleCount} samples</span>
       </div>
+      {prediction.trend.length > 1 && (
+        <div aria-label="Recent historical surplus trend for the same weekday" style={{
+          display: 'flex', alignItems: 'flex-end', gap: 5, height: 30, margin: '-7px 0 16px 28px'
+        }}>
+          {prediction.trend.map((value, index) => {
+            const min = Math.min(...prediction.trend)
+            const max = Math.max(...prediction.trend)
+            const height = max === min ? 18 : 8 + ((value - min) / (max - min)) * 18
+            return <span key={`${index}-${value}`} title={`${value} meals`} style={{
+              height, flex: 1, maxWidth: 22, borderRadius: '3px 3px 0 0',
+              background: 'linear-gradient(180deg, #fb923c, rgba(249,115,22,0.35))'
+            }} />
+          })}
+          <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginLeft: 4 }}>recent same-weekday samples</span>
+        </div>
+      )}
 
       {/* Match / Rescue info */}
       {isRescue ? (
