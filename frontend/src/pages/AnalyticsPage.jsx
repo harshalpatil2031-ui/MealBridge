@@ -30,16 +30,65 @@ function OutcomeDonut({ data }) {
   return <div className="outcomes-layout"><div className="outcome-donut" style={{ background: `conic-gradient(${gradient})` }}><div><strong>100%</strong><span>outcomes</span></div></div><div className="outcome-legend">{data.map(item => <div key={item.name}><i style={{ background: item.color }} /><span>{item.name}</span><strong>{item.value}%</strong></div>)}</div></div>
 }
 
+function csvCell(value) {
+  return `"${String(value).replaceAll('"', '""')}"`
+}
+
+function downloadAnalyticsReport(totals) {
+  const rows = [
+    ['MealBridge Analytics Report'],
+    ['Generated at', new Date().toISOString()],
+    [],
+    ['Summary'],
+    ['Metric', 'Value'],
+    ['Donations logged this week', totals.donations],
+    ['Rescued donations this week', totals.rescued],
+    ['Rescue success rate', `${totals.rescueRate}%`],
+    [],
+    ['Weekly activity'],
+    ['Day', 'Donations logged', 'Donations rescued'],
+    ...analytics.weekly.map(day => [day.day, day.donations, day.rescued]),
+    [],
+    ['Top donors'],
+    ['Donor', 'Meals contributed'],
+    ...analytics.topDonors.map(donor => [donor.name, donor.meals]),
+    [],
+    ['Top recipients'],
+    ['Recipient', 'Meals received'],
+    ...analytics.topRecipients.map(recipient => [recipient.name, recipient.meals]),
+    [],
+    ['Rescue outcomes'],
+    ['Outcome', 'Share of tracked outcomes (%)'],
+    ...analytics.outcomes.map(outcome => [outcome.name, outcome.value]),
+  ]
+  const csv = `\uFEFF${rows.map(row => row.map(csvCell).join(',')).join('\r\n')}`
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `mealbridge-analytics-${new Date().toISOString().slice(0, 10)}.csv`
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
 export default function AnalyticsPage() {
+  const totals = analytics.weekly.reduce((result, day) => ({
+    donations: result.donations + day.donations,
+    rescued: result.rescued + day.rescued,
+  }), { donations: 0, rescued: 0 })
+  totals.rescueRate = totals.donations ? Math.round(totals.rescued / totals.donations * 100) : 0
+
   return <>
     <DashboardLayout title="Analytics & reports" subtitle="A weekly view of donations, partner impact, and rescue outcomes.">
       <section className="stat-grid analytics-summary">
-        <article className="glass-card stat-card"><div className="stat-top"><span>📦</span><span className="stat-note">This week</span></div><strong className="stat-value orange">134</strong><span className="stat-label">Donations logged</span></article>
-        <article className="glass-card stat-card"><div className="stat-top"><span>🟢</span><span className="stat-note">Confirmed handovers</span></div><strong className="stat-value green">125</strong><span className="stat-label">Meals rescued (batches)</span></article>
-        <article className="glass-card stat-card"><div className="stat-top"><span>🎯</span><span className="stat-note">At-risk recoveries</span></div><strong className="stat-value blue">94%</strong><span className="stat-label">Rescue success rate</span></article>
+        <article className="glass-card stat-card"><div className="stat-top"><span>📦</span><span className="stat-note">This week</span></div><strong className="stat-value orange">{totals.donations}</strong><span className="stat-label">Donations logged</span></article>
+        <article className="glass-card stat-card"><div className="stat-top"><span>🟢</span><span className="stat-note">Confirmed handovers</span></div><strong className="stat-value green">{totals.rescued}</strong><span className="stat-label">Donations rescued</span></article>
+        <article className="glass-card stat-card"><div className="stat-top"><span>🎯</span><span className="stat-note">At-risk recoveries</span></div><strong className="stat-value blue">{totals.rescueRate}%</strong><span className="stat-label">Rescue success rate</span></article>
       </section>
 
-      <section className="dashboard-section"><SectionHeading eyebrow="WEEKLY ACTIVITY" title="Daily donations" detail="Donations logged compared with confirmed rescues." />
+      <section className="dashboard-section"><SectionHeading eyebrow="WEEKLY ACTIVITY" title="Daily donations" detail="Donations logged compared with confirmed rescues."
+        action={<button type="button" className="btn-secondary compact-btn" onClick={() => downloadAnalyticsReport(totals)} aria-label="Download analytics report as CSV">⬇ Download CSV report</button>} />
         <article className="glass-card chart-card"><div className="chart-legend"><span><i className="legend-orange" /> Donations</span><span><i className="legend-green" /> Rescued</span></div><LineChart data={analytics.weekly} /></article>
       </section>
 
