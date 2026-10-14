@@ -146,8 +146,14 @@ npm run dev
 ```bash
 cd backend
 pip install -r requirements.txt
+python seed.py
 uvicorn main:app --reload
 ```
+
+`python seed.py` creates or refreshes `backend/mealbridge.db` with repeatable
+demo users, donations, rescue timelines, and 60 days of surplus history. Demo
+accounts are listed in the seed script; its placeholder passwords are not
+production credentials.
 
 ### Environment Variables
 Create a `.env` file in `/backend`:
