@@ -226,4 +226,3 @@ MIT License — see [LICENSE](LICENSE) for details.
 
 ---
 
-*Built with ❤️ by Team NovaNexus for PRISM 26 Socithon*
