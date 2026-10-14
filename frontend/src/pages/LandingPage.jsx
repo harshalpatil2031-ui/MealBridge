@@ -173,8 +173,8 @@ export default function LandingPage() {
         {/* Grid overlay */}
         <div style={{
           position: 'absolute', inset: 0, zIndex: 0,
-          backgroundImage: `linear-gradient(rgba(245,158,11,0.04) 1px, transparent 1px),
-                            linear-gradient(90deg, rgba(245,158,11,0.04) 1px, transparent 1px)`,
+          backgroundImage: `linear-gradient(rgba(249,115,22,0.04) 1px, transparent 1px),
+                            linear-gradient(90deg, rgba(249,115,22,0.04) 1px, transparent 1px)`,
           backgroundSize: '60px 60px'
         }} />
 
@@ -439,7 +439,7 @@ export default function LandingPage() {
       <div className="gradient-divider" />
 
       {/* ── PROBLEM ────────────────────────────────────────────── */}
-      <section className="section" style={{ background: '#1a1108' }}>
+      <section className="section" style={{ background: 'var(--bg-secondary)' }}>
         <div className="container">
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 64, alignItems: 'center' }}>
             <div>

@@ -4,6 +4,7 @@ import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import DonorDashboard from './pages/DonorDashboard'
 import MatchingPage from './pages/MatchingPage'
+import RescuePage from './pages/RescuePage'
 import './index.css'
 
 // Placeholder pages — will be replaced by real dashboards
@@ -26,6 +27,7 @@ export default function App() {
         <Route path="/register"    element={<RegisterPage />} />
         <Route path="/donor"       element={<DonorDashboard />} />
         <Route path="/matching"    element={<MatchingPage />} />
+        <Route path="/rescue"      element={<RescuePage />} />
         <Route path="/recipient"   element={<ComingSoon page="Recipient" />} />
         <Route path="/coordinator" element={<ComingSoon page="Coordinator" />} />
         <Route path="*"            element={<Navigate to="/" />} />
