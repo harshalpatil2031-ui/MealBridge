@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
+import ChatWidget from '../components/ChatWidget'
 
 /* ─── Mock Data ──────────────────────────────────────────────── */
 const mockUser = { name: 'Harshal Patil', org: 'Sunrise Hostel', role: 'donor' }
@@ -345,7 +346,7 @@ function Sidebar({ active }) {
   ]
 
   return (
-    <aside style={{
+    <aside className="donor-sidebar" style={{
       width: 240, flexShrink: 0,
       background: 'rgba(13,21,40,0.95)', borderRight: '1px solid var(--border)',
       display: 'flex', flexDirection: 'column', minHeight: '100vh',
@@ -433,7 +434,7 @@ export default function DonorDashboard() {
   const totalDonations = mockHistory.length + donations.length
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: 'transparent' }}>
+    <div className="donor-dashboard-shell" style={{ display: 'flex', minHeight: '100vh', background: 'transparent' }}>
       <Sidebar active="dashboard" />
 
       {/* Main */}
@@ -553,6 +554,7 @@ export default function DonorDashboard() {
 
       {/* Modal */}
       {showModal && <NewDonationModal onClose={() => setShowModal(false)} />}
+      <ChatWidget />
     </div>
   )
 }
