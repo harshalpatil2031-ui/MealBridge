@@ -301,21 +301,28 @@ function ActiveDonationCard({ d, onHandover }) {
           </div>
         </div>
       ) : (
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: 12,
-          background: 'rgba(59,130,246,0.07)', border: '1px solid rgba(59,130,246,0.2)',
-          borderRadius: 'var(--radius-sm)', padding: '12px 14px'
-        }}>
-          <span style={{ fontSize: '1.1rem' }}>🎯</span>
-          <div>
-            <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#60a5fa' }}>Matched with {d.matched}</div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Awaiting pickup confirmation</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12,
+            background: 'rgba(59,130,246,0.07)', border: '1px solid rgba(59,130,246,0.2)',
+            borderRadius: 'var(--radius-sm)', padding: '12px 14px'
+          }}>
+            <span style={{ fontSize: '1.1rem' }}>🎯</span>
+            <div>
+              <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#60a5fa' }}>Matched with {d.matched}</div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Awaiting pickup confirmation</div>
+            </div>
+            <div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
+              <Link to="/matching" style={{
+                padding: '8px 14px', borderRadius: 'var(--radius-sm)', fontSize: '0.8rem',
+                background: 'rgba(59,130,246,0.15)', color: '#60a5fa', textDecoration: 'none',
+                fontWeight: 600, border: '1px solid rgba(59,130,246,0.3)'
+              }}>View Matches</Link>
+              <button id={`confirm-handover-${d.id}`} onClick={() => onHandover(d.id)}
+                className="btn-green" style={{ padding: '8px 16px', fontSize: '0.8rem' }}>
+                Confirm Handover
+              </button>
+            </div>
           </div>
-          <button id={`confirm-handover-${d.id}`} onClick={() => onHandover(d.id)}
-            className="btn-green" style={{ marginLeft: 'auto', padding: '8px 16px', fontSize: '0.8rem' }}>
-            Confirm Handover
-          </button>
-        </div>
+
       )}
     </div>
   )
