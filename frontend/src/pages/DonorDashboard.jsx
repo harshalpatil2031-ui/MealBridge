@@ -324,9 +324,9 @@ function ActiveDonationCard({ d, onHandover }) {
                 background: 'rgba(59,130,246,0.15)', color: '#60a5fa', textDecoration: 'none',
                 fontWeight: 600, border: '1px solid rgba(59,130,246,0.3)'
               }}>View Matches</Link>
-              <button id={`confirm-handover-${d.id}`} onClick={() => onHandover(d.id)}
+              <button id={`confirm-handover-${d.id}`} onClick={() => onHandover(d)}
                 className="btn-green" style={{ padding: '8px 16px', fontSize: '0.8rem' }}>
-                Confirm Handover
+                {d.handoverProof ? 'View Handover Proof' : 'Add Photo Proof'}
               </button>
             </div>
           </div>
@@ -424,9 +424,56 @@ function Sidebar({ active }) {
 export default function DonorDashboard() {
   const [showModal, setShowModal] = useState(false)
   const [donations, setDonations] = useState(mockActiveDonations)
+  const [handoverDonation, setHandoverDonation] = useState(null)
+  const [handoverProof, setHandoverProof] = useState(null)
+  const [proofError, setProofError] = useState('')
 
-  const handleHandover = (id) => {
-    setDonations(prev => prev.map(d => d.id === id ? { ...d, status: 'RESCUED' } : d))
+  const handleHandover = (donation) => {
+    setHandoverDonation(donation)
+    setHandoverProof(donation.handoverProof || null)
+    setProofError('')
+  }
+
+  const selectHandoverProof = (event) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      setProofError('Choose an image file to document the handover.')
+      event.target.value = ''
+      return
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      setProofError('The photo must be 8 MB or smaller.')
+      event.target.value = ''
+      return
+    }
+    setProofError('')
+    if (handoverProof?.url && handoverProof.url !== handoverDonation?.handoverProof?.url) {
+      URL.revokeObjectURL(handoverProof.url)
+    }
+    setHandoverProof({ name: file.name, url: URL.createObjectURL(file) })
+  }
+
+  const closeHandover = () => {
+    if (handoverProof?.url && handoverProof.url !== handoverDonation?.handoverProof?.url) {
+      URL.revokeObjectURL(handoverProof.url)
+    }
+    setHandoverDonation(null)
+    setHandoverProof(null)
+    setProofError('')
+  }
+
+  const confirmHandover = () => {
+    if (!handoverProof || !handoverDonation) {
+      setProofError('Add a handover photo before confirming.')
+      return
+    }
+    setDonations(prev => prev.map(d => d.id === handoverDonation.id
+      ? { ...d, status: 'RESCUED', handoverProof }
+      : d))
+    setHandoverDonation(null)
+    setHandoverProof(null)
+    setProofError('')
   }
 
   const totalMeals   = mockHistory.filter(h => h.status === 'RESCUED').reduce((a, h) => a + h.qty, 0)
@@ -555,6 +602,78 @@ export default function DonorDashboard() {
       {/* Modal */}
       {showModal && <NewDonationModal onClose={() => setShowModal(false)} />}
       <ChatWidget />
+
+      {handoverDonation && (
+        <div role="presentation" onMouseDown={e => { if (e.target === e.currentTarget) closeHandover() }}
+          style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'grid', placeItems: 'center', padding: 20,
+            background: 'rgba(2,6,23,0.78)', backdropFilter: 'blur(8px)' }}>
+          <section role="dialog" aria-modal="true" aria-labelledby="handover-title"
+            style={{ width: 'min(520px, 100%)', maxHeight: '90vh', overflow: 'auto', padding: 26,
+              background: '#111827', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)',
+              boxShadow: '0 24px 80px rgba(0,0,0,0.45)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'flex-start' }}>
+              <div>
+                <h2 id="handover-title" style={{ fontFamily: 'Space Grotesk,sans-serif', fontSize: '1.2rem', marginBottom: 6 }}>
+                  📸 Handover photo proof
+                </h2>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                  {handoverDonation.id} · {handoverDonation.food} · {handoverDonation.qty} portions
+                </p>
+              </div>
+              <button type="button" onClick={closeHandover} aria-label="Close photo proof dialog"
+                style={{ border: '1px solid var(--border)', borderRadius: 8, background: 'transparent', color: 'var(--text-secondary)',
+                  padding: '5px 10px', cursor: 'pointer' }}>✕</button>
+            </div>
+
+            <p style={{ margin: '18px 0 12px', fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+              Add a photo of the food handover. Images stay in this prototype session; no server upload is configured.
+            </p>
+
+            {handoverProof ? (
+              <>
+                <div style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', overflow: 'hidden', marginBottom: 14 }}>
+                  <img src={handoverProof.url} alt={`Handover proof for donation ${handoverDonation.id}`}
+                    style={{ display: 'block', width: '100%', maxHeight: 260, objectFit: 'contain', background: '#080d18' }} />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '10px 12px', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{handoverProof.name}</span>
+                    <span style={{ color: '#34d399', fontWeight: 700, flexShrink: 0 }}>✓ Photo attached</span>
+                  </div>
+                </div>
+                {!handoverDonation.handoverProof && (
+                  <label htmlFor="handover-proof-file" style={{ display: 'inline-block', marginBottom: 14,
+                    color: 'var(--orange-light)', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer' }}>
+                    Replace photo
+                  </label>
+                )}
+              </>
+            ) : (
+              <label htmlFor="handover-proof-file" style={{ display: 'grid', placeItems: 'center', minHeight: 132, padding: 18,
+                border: '1px dashed rgba(249,115,22,0.55)', borderRadius: 'var(--radius-md)', background: 'rgba(249,115,22,0.05)',
+                color: 'var(--text-secondary)', textAlign: 'center', cursor: 'pointer', marginBottom: 14 }}>
+                <span><strong style={{ color: 'var(--orange-light)' }}>Choose a photo</strong><br />JPG, PNG, or another image · up to 8 MB</span>
+              </label>
+            )}
+            <input id="handover-proof-file" type="file" accept="image/*" onChange={selectHandoverProof}
+              aria-describedby={proofError ? 'handover-proof-error' : undefined}
+              style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0,0,0,0)' }} />
+            {proofError && <p id="handover-proof-error" role="alert" style={{ color: '#f87171', fontSize: '0.82rem', margin: '0 0 14px' }}>{proofError}</p>}
+
+            {handoverDonation.handoverProof ? (
+              <button type="button" onClick={closeHandover} className="btn-green" style={{ width: '100%', justifyContent: 'center' }}>
+                Done
+              </button>
+            ) : (
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button type="button" onClick={closeHandover}
+                  style={{ flex: 1, padding: 12, borderRadius: 'var(--radius-md)', border: '1px solid var(--border)',
+                    background: 'transparent', color: 'var(--text-secondary)', cursor: 'pointer', font: 'inherit' }}>Cancel</button>
+                <button type="button" onClick={confirmHandover} className="btn-green"
+                  style={{ flex: 1, justifyContent: 'center' }}>Confirm Handover</button>
+              </div>
+            )}
+          </section>
+        </div>
+      )}
     </div>
   )
 }
