@@ -328,3 +328,18 @@ h1,h2,h3,h4,h5 { font-family: 'Space Grotesk', sans-serif; line-height: 1.2; }
   border-bottom: 1px solid var(--border);
   padding: 12px 0;
 }
+
+/* ─── Interactive donation map ───────────────────────────────── */
+.donation-map { position: relative; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-lg); background: #dbe5db; isolation: isolate; }
+.map-loading { height: 250px; display: grid; place-items: center; border: 1px solid var(--border); border-radius: var(--radius-lg); color: #94a3b8; background: rgba(17,24,39,.85); font-size: .78rem; }
+.donation-map.compact { height: 250px; }
+.donation-map-canvas { z-index: 0; width: 100%; height: 100%; min-height: 250px; background: #dbe5db; font-family: Inter,sans-serif; }
+.leaflet-container a { color: #ea580c; }
+.mealbridge-map-icon { display: grid; place-items: center; border: 0; background: transparent; }
+.mealbridge-map-icon span { display: grid; place-items: center; width: 100%; height: 100%; border: 2px solid white; border-radius: 50%; box-shadow: 0 3px 15px rgba(15,23,42,.4); font-size: 1rem; }
+.donor-map-icon span { background: #f97316; font-size: 1.1rem; }.recipient-map-icon span { background: #10b981; }
+.map-popup { display: grid; gap: 3px; min-width: 150px; font: .76rem Inter,sans-serif; color: #334155; }.map-popup strong { color: #0f172a; font-size: .83rem; }.map-popup span { color: #475569; }
+.map-key { position: absolute; z-index: 2; left: 9px; bottom: 9px; display: flex; gap: 10px; padding: 7px 9px; border: 1px solid rgba(15,23,42,.12); border-radius: 9px; color: #334155; background: rgba(255,255,255,.92); box-shadow: 0 2px 8px rgba(15,23,42,.14); font-size: .61rem; }.map-key span { display: flex; align-items: center; gap: 4px; }.map-key i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; }.map-key-donor { background: #f97316; }.map-key-recipient { background: #10b981; }
+.map-route-summary { display: grid; gap: 3px; padding: 10px 12px; color: #64748b; background: rgba(8,13,26,.92); font-size: .68rem; }.map-route-summary strong { color: #e2e8f0; font-size: .77rem; }.map-route-summary b { color: #fb923c; padding: 0 4px; }.map-route-summary small { color: #94a3b8; }
+@media (max-width: 900px) { .matching-layout { grid-template-columns: minmax(0,1fr) !important; }.donation-map.compact { height: 300px; } }
+@media (max-width: 600px) { .donation-map.compact { height: 250px; } }
