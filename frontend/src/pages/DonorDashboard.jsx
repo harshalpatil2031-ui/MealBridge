@@ -603,13 +603,15 @@ export default function DonorDashboard() {
     setProofError('')
   }
 
-  const confirmHandover = () => {
+  const saveHandoverProof = () => {
     if (!handoverProof || !handoverDonation) {
-      setProofError('Add a handover photo before confirming.')
+      setProofError('Add a handover photo before saving.')
       return
     }
+    // Attach photo proof to the donation in local state without changing status.
+    // The recipient flow records the physical handover through the API.
     setDonations(prev => prev.map(d => d.id === handoverDonation.id
-      ? { ...d, status: 'RESCUED', handoverProof }
+      ? { ...d, handoverProof }
       : d))
     setHandoverDonation(null)
     setHandoverProof(null)
@@ -682,11 +684,28 @@ export default function DonorDashboard() {
 
   // Impact metrics
   const totalDonations = donations.length
-  const totalMeals = donations
-    .filter(d => d.status === 'RESCUED')
+  const rescuedDonations = donations.filter(d => d.status === 'RESCUED')
+
+  // Unit-aware: Count only meal-based quantities (meals, portions)
+  const MEAL_UNITS = new Set(['meals', 'portions', 'meal', 'portion'])
+  const rescuedMeals = rescuedDonations
+    .filter(d => !d.unit || MEAL_UNITS.has(String(d.unit).toLowerCase().trim()))
     .reduce((sum, d) => sum + (Number(d.quantity) || 0), 0)
 
-  const rescuedCount = donations.filter(d => d.status === 'RESCUED').length
+  // Non-meal rescued items breakdown (kg, boxes, etc.)
+  const nonMealRescued = rescuedDonations
+    .filter(d => d.unit && !MEAL_UNITS.has(String(d.unit).toLowerCase().trim()))
+  const nonMealSummary = nonMealRescued.length > 0
+    ? Object.entries(
+        nonMealRescued.reduce((acc, d) => {
+          const u = String(d.unit).toLowerCase().trim()
+          acc[u] = (acc[u] || 0) + (Number(d.quantity) || 0)
+          return acc
+        }, {})
+      ).map(([u, q]) => `+ ${q} ${u}`).join(', ')
+    : null
+
+  const rescuedCount = rescuedDonations.length
   const rescueRate = totalDonations > 0 ? Math.round((rescuedCount / totalDonations) * 100) : 0
 
   const uniqueRecipients = new Set(
@@ -731,7 +750,14 @@ export default function DonorDashboard() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16 }}>
               {[
                 { icon: '🍱', value: totalDonations,  label: 'Total Donations',   color: '#f97316', suffix: '' },
-                { icon: '✅', value: totalMeals,      label: 'Meals Rescued',     color: '#10b981', suffix: '' },
+                {
+                  icon: '✅',
+                  value: rescuedMeals,
+                  label: 'Meals Rescued',
+                  color: '#10b981',
+                  suffix: '',
+                  subtext: nonMealSummary ? `(${nonMealSummary})` : 'meals & portions'
+                },
                 { icon: '🎯', value: rescueRate,      label: 'Rescue Rate',       color: '#60a5fa', suffix: '%' },
                 { icon: '🏠', value: uniqueRecipients, label: 'NGOs Helped',      color: '#a78bfa', suffix: '' },
               ].map(s => (
@@ -748,6 +774,11 @@ export default function DonorDashboard() {
                     {s.value}{s.suffix}
                   </div>
                   <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: 6 }}>{s.label}</div>
+                  {s.subtext && (
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 3 }}>
+                      {s.subtext}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -914,7 +945,7 @@ export default function DonorDashboard() {
                   📸 Handover photo proof
                 </h2>
                 <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                  {handoverDonation.id} · {handoverDonation.food_name} · {handoverDonation.quantity} portions
+                  {handoverDonation.id} · {handoverDonation.food_name} · {handoverDonation.quantity} {handoverDonation.unit || 'portions'}
                 </p>
               </div>
               <button type="button" onClick={closeHandover} aria-label="Close photo proof dialog"
@@ -923,7 +954,7 @@ export default function DonorDashboard() {
             </div>
 
             <p style={{ margin: '18px 0 12px', fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-              Add a photo of the food handover. Images stay in this prototype session; no server upload is configured.
+              Attach a photo of the food handover. Physical handover confirmation will be recorded by the recipient via the API.
             </p>
 
             {handoverProof ? (
@@ -955,7 +986,7 @@ export default function DonorDashboard() {
               style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0,0,0,0)' }} />
             {proofError && <p id="handover-proof-error" role="alert" style={{ color: '#f87171', fontSize: '0.82rem', margin: '0 0 14px' }}>{proofError}</p>}
 
-            {handoverDonation.handoverProof ? (
+            {handoverDonation.handoverProof && !proofError && handoverProof?.url === handoverDonation.handoverProof.url ? (
               <button type="button" onClick={closeHandover} className="btn-green" style={{ width: '100%', justifyContent: 'center' }}>
                 Done
               </button>
@@ -964,8 +995,8 @@ export default function DonorDashboard() {
                 <button type="button" onClick={closeHandover}
                   style={{ flex: 1, padding: 12, borderRadius: 'var(--radius-md)', border: '1px solid var(--border)',
                     background: 'transparent', color: 'var(--text-secondary)', cursor: 'pointer', font: 'inherit' }}>Cancel</button>
-                <button type="button" onClick={confirmHandover} className="btn-green"
-                  style={{ flex: 1, justifyContent: 'center' }}>Confirm Handover</button>
+                <button type="button" onClick={saveHandoverProof} className="btn-green"
+                  style={{ flex: 1, justifyContent: 'center' }}>Save Photo Proof</button>
               </div>
             )}
           </section>
