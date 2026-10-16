@@ -1,4 +1,4 @@
-"""MealBridge FastAPI application (read endpoints for A-02)."""
+"""MealBridge FastAPI application with SQLite-backed donation workflows."""
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
