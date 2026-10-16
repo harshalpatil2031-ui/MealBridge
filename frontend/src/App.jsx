@@ -5,18 +5,11 @@ import RegisterPage from './pages/RegisterPage'
 import DonorDashboard from './pages/DonorDashboard'
 import MatchingPage from './pages/MatchingPage'
 import RescuePage from './pages/RescuePage'
+import RecipientDashboard from './pages/RecipientDashboard'
+import CoordinatorDashboard from './pages/CoordinatorDashboard'
+import DonationDetailPage from './pages/DonationDetailPage'
+import AnalyticsPage from './pages/AnalyticsPage'
 import './index.css'
-
-// Placeholder pages — will be replaced by real dashboards
-const ComingSoon = ({ page }) => (
-  <div style={{ minHeight: '100vh', background: 'transparent', display: 'flex',
-    alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 16 }}>
-    <div style={{ fontSize: '3rem' }}>🚧</div>
-    <h2 style={{ fontFamily: 'Space Grotesk,sans-serif', fontSize: '1.6rem' }}>{page} Dashboard</h2>
-    <p style={{ color: 'var(--text-secondary)' }}>Building now — check back soon!</p>
-    <a href="/" className="btn-primary" style={{ marginTop: 8 }}>← Back to Home</a>
-  </div>
-)
 
 export default function App() {
   return (
@@ -28,8 +21,10 @@ export default function App() {
         <Route path="/donor"       element={<DonorDashboard />} />
         <Route path="/matching"    element={<MatchingPage />} />
         <Route path="/rescue"      element={<RescuePage />} />
-        <Route path="/recipient"   element={<ComingSoon page="Recipient" />} />
-        <Route path="/coordinator" element={<ComingSoon page="Coordinator" />} />
+        <Route path="/recipient"   element={<RecipientDashboard />} />
+        <Route path="/coordinator" element={<CoordinatorDashboard />} />
+        <Route path="/donation/:id" element={<DonationDetailPage />} />
+        <Route path="/analytics" element={<AnalyticsPage />} />
         <Route path="*"            element={<Navigate to="/" />} />
       </Routes>
     </BrowserRouter>

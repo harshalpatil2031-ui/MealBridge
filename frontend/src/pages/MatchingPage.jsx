@@ -1,10 +1,13 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { Link } from 'react-router-dom'
+
+const DonationMap = lazy(() => import('../components/DonationMap'))
 
 /* ─── Mock Data ──────────────────────────────────────────────── */
 const mockDonation = {
   id: 'D003', food: 'Cooked Meals', type: '🍛', qty: 80,
-  donor: 'Sunrise Hostel', deadline: '7:30 PM today', location: 'Kothrud, Pune'
+  donor: 'Sunrise Hostel', deadline: '7:30 PM today', location: 'Kothrud, Pune',
+  lat: 18.5074, lng: 73.8077,
 }
 
 const mockMatches = [
@@ -20,7 +23,7 @@ const mockMatches = [
       deadline:    { score: 88,  label: '45 min buffer' },
       pastSuccess: { score: 98,  label: '98% success rate' },
     },
-    contact: '+91 98765 43210',
+    contact: '+91 98765 43210', lat: 18.4912, lng: 73.8245,
     address: 'Karve Nagar, Pune',
     color: '#10b981',
   },
@@ -36,7 +39,7 @@ const mockMatches = [
       deadline:    { score: 72,  label: '30 min buffer' },
       pastSuccess: { score: 94,  label: '94% success rate' },
     },
-    contact: '+91 87654 32109',
+    contact: '+91 87654 32109', lat: 18.5308, lng: 73.8474,
     address: 'Shivajinagar, Pune',
     color: '#3b82f6',
   },
@@ -52,7 +55,7 @@ const mockMatches = [
       deadline:    { score: 62,  label: '18 min buffer' },
       pastSuccess: { score: 89,  label: '89% success rate' },
     },
-    contact: '+91 76543 21098',
+    contact: '+91 76543 21098', lat: 18.5121, lng: 73.7857,
     address: 'Bavdhan, Pune',
     color: '#a78bfa',
   },
@@ -277,70 +280,6 @@ function MatchCard({ match, onAssign, assigned }) {
   )
 }
 
-/* ─── Mini Map Placeholder ───────────────────────────────────── */
-function MapPlaceholder({ matches }) {
-  return (
-    <div style={{
-      background: 'rgba(13,21,40,0.8)', border: '1px solid var(--border)',
-      borderRadius: 'var(--radius-lg)', overflow: 'hidden', position: 'relative', height: 200
-    }}>
-      {/* Grid pattern = fake map */}
-      <div style={{
-        position: 'absolute', inset: 0,
-        backgroundImage: `linear-gradient(rgba(249,115,22,0.06) 1px, transparent 1px),
-                          linear-gradient(90deg, rgba(249,115,22,0.06) 1px, transparent 1px)`,
-        backgroundSize: '30px 30px'
-      }} />
-
-      {/* Donor pin */}
-      <div style={{ position: 'absolute', top: '40%', left: '35%', transform: 'translate(-50%,-50%)', zIndex: 2 }}>
-        <div style={{ position: 'relative' }}>
-          <div style={{
-            width: 36, height: 36, borderRadius: '50%',
-            background: 'linear-gradient(135deg,#f97316,#ea580c)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '1rem', boxShadow: '0 0 20px rgba(249,115,22,0.5)',
-            border: '2px solid rgba(249,115,22,0.8)'
-          }}>🏪</div>
-          <div style={{
-            position: 'absolute', top: '100%', left: '50%', transform: 'translateX(-50%)',
-            background: 'rgba(249,115,22,0.9)', color: '#fff', fontSize: '0.6rem',
-            fontWeight: 700, padding: '2px 6px', borderRadius: 4, whiteSpace: 'nowrap', marginTop: 4
-          }}>Sunrise Hostel</div>
-        </div>
-      </div>
-
-      {/* Connection lines + recipient pins */}
-      {[
-        { top: '25%', left: '58%', color: '#10b981', name: 'Asha Trust', dist: '1.2km' },
-        { top: '55%', left: '65%', color: '#3b82f6', name: 'Hope Kitchen', dist: '2.1km' },
-        { top: '70%', left: '72%', color: '#a78bfa', name: 'Green Hope', dist: '3.4km' },
-      ].map((p, i) => (
-        <div key={i} style={{ position: 'absolute', top: p.top, left: p.left, transform: 'translate(-50%,-50%)', zIndex: 2 }}>
-          <div style={{
-            width: 28, height: 28, borderRadius: '50%',
-            background: `${p.color}25`, border: `2px solid ${p.color}`,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '0.8rem', boxShadow: `0 0 12px ${p.color}40`
-          }}>🏠</div>
-          <div style={{
-            position: 'absolute', top: '100%', left: '50%', transform: 'translateX(-50%)',
-            background: `${p.color}cc`, color: '#fff', fontSize: '0.55rem',
-            fontWeight: 700, padding: '2px 5px', borderRadius: 3, whiteSpace: 'nowrap', marginTop: 3
-          }}>{p.name} · {p.dist}</div>
-        </div>
-      ))}
-
-      {/* Label */}
-      <div style={{
-        position: 'absolute', bottom: 10, left: 12, fontSize: '0.72rem',
-        color: 'var(--text-muted)', background: 'rgba(8,13,26,0.8)',
-        padding: '4px 10px', borderRadius: 6
-      }}>📍 Pune, Maharashtra · Leaflet map coming soon</div>
-    </div>
-  )
-}
-
 /* ─── Main Page ──────────────────────────────────────────────── */
 export default function MatchingPage() {
   const [assigned, setAssigned] = useState(null)
@@ -412,7 +351,7 @@ export default function MatchingPage() {
         </div>
 
         {/* Two-col layout */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: 24, alignItems: 'start' }}>
+        <div className="matching-layout" style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: 24, alignItems: 'start' }}>
 
           {/* Left — match cards */}
           <div>
@@ -468,7 +407,14 @@ export default function MatchingPage() {
             <div>
               <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)',
                 textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>📍 Location Map</div>
-              <MapPlaceholder matches={mockMatches} />
+              <Suspense fallback={<div className="map-loading">Loading neighborhood map…</div>}>
+                <DonationMap
+                  compact
+                  donor={{ ...mockDonation, name: mockDonation.donor }}
+                  recipients={mockMatches}
+                  selectedRecipientId={assigned || mockMatches[0].id}
+                />
+              </Suspense>
             </div>
 
             {/* Scoring legend */}
