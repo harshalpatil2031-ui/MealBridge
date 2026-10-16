@@ -284,6 +284,7 @@ h1,h2,h3,h4,h5 { font-family: 'Space Grotesk', sans-serif; line-height: 1.2; }
 .dashboard-nav-link:hover,.dashboard-nav-link.active { color: #fdba74; border-color: rgba(249,115,22,.16); background: rgba(249,115,22,.09); }
 .dashboard-sidebar-footer { margin-top: auto; padding: 14px 12px; color: #94a3b8; font-size: .78rem; border-top: 1px solid var(--border); }
 .online-dot { display: inline-block; width: 7px; height: 7px; margin-right: 7px; border-radius: 50%; background: #10b981; box-shadow: 0 0 10px rgba(16,185,129,.55); }
+.offline-dot { display: inline-block; width: 7px; height: 7px; margin-right: 7px; border-radius: 50%; background: #f59e0b; box-shadow: 0 0 8px rgba(245,158,11,.35); }
 .dashboard-main { min-width: 0; flex: 1; }
 .dashboard-topbar { min-height: 116px; padding: 22px clamp(20px,4vw,54px); display: flex; align-items: center; justify-content: space-between; gap: 18px; border-bottom: 1px solid var(--border); background: rgba(8,13,26,.54); }
 .dashboard-topbar h1 { margin: 6px 0 3px; font-size: clamp(1.35rem,2vw,1.8rem); }
