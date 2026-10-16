@@ -81,9 +81,11 @@ export default function MatchingPage() {
     <div style={{ maxWidth: 1050, margin: '0 auto' }}>
       <Link to="/donor" className="back-link">← Back to donor dashboard</Link>
       <header style={{ margin: '16px 0 24px' }}>
-        <p className="dashboard-eyebrow">RULE-BASED MATCHING</p>
-        <h1>Match a donation</h1>
-        <p style={{ color: 'var(--text-secondary)' }}>Candidates and feasibility come from the saved donation and API response.</p>
+        <p className="dashboard-eyebrow">{donation?.status === 'MATCHED' ? 'SAVED MATCH' : 'RULE-BASED MATCHING'}</p>
+        <h1>{donation?.status === 'MATCHED' ? 'Saved match details' : 'Match a donation'}</h1>
+        <p style={{ color: 'var(--text-secondary)' }}>{donation?.status === 'MATCHED'
+          ? 'Donation submission already selected a recipient. The API stores that assignment, but does not retain the alternate candidate ranking.'
+          : 'Candidates and feasibility come from the selected saved donation and API response.'}</p>
       </header>
 
       {!donationId ? <section className="glass-card empty-state">
@@ -103,16 +105,12 @@ export default function MatchingPage() {
             </div>
             <span className={`status-badge status-${donation.status.toLowerCase()}`}>{donation.status.replaceAll('_', ' ')}</span>
           </div>
-          <p style={{ marginTop: 12, color: 'var(--text-secondary)', fontSize: '.85rem' }}>
+          {donation.status !== 'MATCHED' && <p style={{ marginTop: 12, color: 'var(--text-secondary)', fontSize: '.85rem' }}>
             Ranking uses the API’s deterministic rules: eligible capacity, approximate straight-line distance, and deadline in the future. It is not an AI score or arrival-time guarantee.
-          </p>
+          </p>}
         </section>
 
         {result?.no_match_reason && <div className="empty-state glass-card" role="status"><h2>No eligible full-quantity match</h2><p>{result.no_match_reason}</p></div>}
-        {donation.status === 'MATCHED' && <div className="glass-card" style={{ padding: 18, marginBottom: 18 }} role="status">
-          <strong>Match already saved: {donation.matched_recipient_name || 'recipient assigned'}</strong>
-          <p style={{ color: 'var(--text-secondary)', marginTop: 5 }}>This page did not rerun matching. Use the saved donation details to continue.</p>
-        </div>}
         {donation.status !== 'PENDING' && donation.status !== 'MATCHED' && <div className="glass-card" style={{ padding: 18, marginBottom: 18 }}><strong>Matching is unavailable for status {donation.status.replaceAll('_', ' ')}.</strong></div>}
 
         {candidates.length > 0 && <section className="dashboard-section">
@@ -130,7 +128,9 @@ export default function MatchingPage() {
         </section>}
 
         {activeRecipient && <section className="glass-card" style={{ marginTop: 22, padding: 18 }}>
-          <h2 style={{ fontSize: '1rem', marginBottom: 8 }}>Saved assignment</h2><p>{activeRecipient.name}</p>
+          <p className="dashboard-eyebrow">CURRENT ASSIGNMENT</p>
+          <h2 style={{ fontSize: '1.1rem', margin: '4px 0 8px' }}>{activeRecipient.name}</h2>
+          {donation.status === 'MATCHED' && <p style={{ color: 'var(--text-secondary)', fontSize: '.85rem' }}>This is the persisted primary recipient. Alternate ranked candidates are not available for an already matched donation.</p>}
           <Link className="btn-primary" style={{ marginTop: 12 }} to={`/rescue?donationId=${encodeURIComponent(donation.id)}`}>Continue to rescue / handover →</Link>
         </section>}
 
