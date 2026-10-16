@@ -36,7 +36,7 @@ export default function App() {
         <Route path="/register"    element={<RegisterPage />} />
         <Route path="/donor" element={<RoleRoute roles={['donor']}><DonorDashboard /></RoleRoute>} />
         <Route path="/matching" element={<RoleRoute roles={['donor']}><MatchingPage /></RoleRoute>} />
-        <Route path="/rescue" element={<RoleRoute roles={['donor']}><RescuePage /></RoleRoute>} />
+        <Route path="/rescue" element={<RoleRoute roles={['donor', 'coordinator']}><RescuePage /></RoleRoute>} />
         <Route path="/recipient" element={<RoleRoute roles={['recipient']}><RecipientDashboard /></RoleRoute>} />
         <Route path="/coordinator" element={<RoleRoute roles={['coordinator']}><CoordinatorDashboard /></RoleRoute>} />
         <Route path="/donation/:id" element={<RoleRoute roles={['donor', 'recipient', 'coordinator']}><DonationDetailPage /></RoleRoute>} />

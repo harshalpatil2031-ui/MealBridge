@@ -9,7 +9,7 @@
 
 ## Prototype constraints that affect the contract
 
-The current SQLite schema is the contract's storage basis. It has no dedicated recipient availability, transport, meal safety, per-recipient acceptance for a normal (non-rescue) match, or donor handover confirmation fields. For this prototype:
+The current SQLite schema is the contract's storage basis. It has no dedicated recipient availability, transport, meal safety, normal-match acceptance table, or donor handover confirmation fields. Normal match acceptance is recorded as a donation event. For this prototype:
 
 - `users.capacity` is the recipient's stated maximum meals per pickup for this demo; it is **not** live inventory or current remaining capacity.
 - There is no stored live availability field. For the first version, seeded recipients are treated as available for matching. The response labels availability as assumed/demo availability. Registration availability cannot be changed until schema support is added.
@@ -48,7 +48,7 @@ recovery impossible     -> FAILED
 all assigned quantity handed over -> RESCUED
 ```
 
-`accept` is recorded as an event and split status where applicable; the `donations.status` CHECK constraint does not include `ACCEPTED`. For a normal single-recipient handover, status remains `MATCHED` until handover, then becomes `RESCUED`. For rescue, status remains `RESCUE_TRIGGERED` while any split is pending/accepted and becomes `RESCUED` only after confirmed quantities sum to donation quantity.
+For a normal match, `matched_recipient_id` initially stores the top-ranked recommendation. Every recipient whose stated capacity covers the quantity can view the open offer. The first eligible recipient to accept becomes the assigned pickup recipient; acceptance is recorded as an event and the offer disappears from other recipient accounts. The `donations.status` CHECK constraint does not include `ACCEPTED`, so status remains `MATCHED` until handover, then becomes `RESCUED`. For rescue, status remains `RESCUE_TRIGGERED` while any split is pending/accepted and becomes `RESCUED` only after confirmed quantities sum to donation quantity.
 
 ## Data shapes
 
@@ -140,7 +140,7 @@ Allowed split statuses: `PROPOSED`, `ACCEPTED`, `HANDED_OVER`, `DECLINED`. Exist
 
 Send `Authorization: Bearer <access_token>` on protected routes. `GET /auth/me` returns the current user's public profile. `POST /auth/logout` revokes the current session. Missing or expired sessions return **401**; role or ownership violations return **403** (or **404** for a record the user cannot view).
 
-`GET /recipients` is limited to donors and coordinators. `GET /donations` returns all records to coordinators, the caller's own records to donors, and only assigned/rescue-split records to recipients. An optional `donor_id` filter is coordinator-only, or may match the authenticated donor's own ID.
+`GET /recipients` is limited to donors and coordinators. `GET /donations` returns all records to coordinators, the caller's own records to donors, and assigned/rescue-split records plus open matched offers within the recipient's stated capacity to recipients. An optional `donor_id` filter is coordinator-only, or may match the authenticated donor's own ID.
 
 ### `GET /health`
 
@@ -191,7 +191,7 @@ Unknown `donor_id` → **404** `{"detail":"Donor not found."}`.
 
 ### `GET /donations/{donation_id}`
 
-Return one donation with ordered events, current rescue (if any), and splits, only when the authenticated user owns or is assigned to the record (or is a coordinator).
+Return one donation with ordered events, current rescue (if any), and splits, only when the authenticated user owns or is assigned to the record, is eligible for an unaccepted offer by capacity, or is a coordinator.
 
 **200**
 
@@ -246,7 +246,7 @@ Validation: authenticated role is donor; food name non-empty; quantity positive 
 
 ### `POST /donations/{donation_id}/match`
 
-Calculate eligible candidates from stored recipient coordinates/capacity and donation deadline. Persist selected recipient, set status `MATCHED`, and insert a `MATCHED` event if a full-quantity recipient is eligible. Candidate distance is Haversine straight-line distance, not driving distance. Exclude recipients treated as unavailable by the demo rule (initially none) and candidates whose capacity is below full quantity or whose pickup deadline has expired.
+Calculate eligible candidates from stored recipient coordinates/capacity and donation deadline. Persist the top-ranked recipient as the recommendation, set status `MATCHED`, and insert a `MATCHED` event if a full-quantity recipient is eligible. Every eligible recipient may view the offer until one accepts it. Candidate distance is Haversine straight-line distance, not driving distance. Exclude recipients treated as unavailable by the demo rule (initially none) and candidates whose capacity is below full quantity or whose pickup deadline has expired.
 
 **Request**
 
@@ -342,7 +342,7 @@ The issue implementation must choose one consistent donation status for infeasib
 
 ### `POST /donations/{donation_id}/accept`
 
-Record an eligible recipient's acceptance. For ordinary `MATCHED` donations, recipient must equal `matched_recipient_id` and `split_id` is omitted. For a rescue split, recipient and split must belong to that donation and split must be `PROPOSED`.
+Record an eligible recipient's acceptance. For ordinary `MATCHED` donations, the recipient must have stated capacity for the full quantity, the deadline must be in the future, and no other recipient may already have accepted; the accepted recipient becomes `matched_recipient_id`, replacing the recommendation if needed. Omit `split_id`. For a rescue split, recipient and split must belong to that donation and split must be `PROPOSED`.
 
 **Request — ordinary match**
 

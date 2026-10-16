@@ -35,9 +35,10 @@ export function getDonations({ donorId, signal } = {}) {
 /**
  * Single donation with events, rescue and splits.
  * @param {string} donationId
+ * @param {{signal?: AbortSignal}} [opts]
  */
-export function getDonation(donationId) {
-  return request('GET', `/donations/${encodeURIComponent(donationId)}`);
+export function getDonation(donationId, { signal } = {}) {
+  return request('GET', `/donations/${encodeURIComponent(donationId)}`, { signal });
 }
 
 /* ── Writes ────────────────────────────────────────────────────── */
