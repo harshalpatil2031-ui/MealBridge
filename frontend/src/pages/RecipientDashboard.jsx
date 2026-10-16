@@ -3,20 +3,12 @@ import { Link } from 'react-router-dom'
 import DashboardLayout, { SectionHeading, StatusBadge, Toast } from '../components/DashboardLayout'
 import ChatWidget from '../components/ChatWidget'
 import {
-  getRecipients,
   getDonations,
   getDonation,
   acceptDonation,
   confirmHandover,
 } from '../api/donations.js'
-
-const FALLBACK_RECIPIENTS = [
-  { id: 'U-R01', name: 'Anita Desai', organization: 'Asha Trust', organization_type: 'NGO', location: 'Karve Nagar, Pune', capacity: 100 },
-  { id: 'U-R02', name: 'Priya Nair', organization: 'Hope Kitchen', organization_type: 'Community Kitchen', location: 'Shivajinagar, Pune', capacity: 80 },
-  { id: 'U-R03', name: 'Suresh More', organization: 'Green Hope NGO', organization_type: 'NGO', location: 'Bavdhan, Pune', capacity: 60 },
-  { id: 'U-R04', name: 'Fatima Sheikh', organization: 'City Shelter NGO', organization_type: 'Shelter', location: 'Hadapsar, Pune', capacity: 120 },
-  { id: 'U-R05', name: 'Vikram Joshi', organization: 'Sunrise Home', organization_type: 'Orphanage', location: 'Baner, Pune', capacity: 50 },
-]
+import { getCurrentUser } from '../api/session.js'
 
 const EMOJI_MAP = {
   'Cooked Meals': '🍛',
@@ -72,8 +64,8 @@ function SkeletonCard() {
 }
 
 export default function RecipientDashboard() {
-  const [recipients, setRecipients] = useState(FALLBACK_RECIPIENTS)
-  const [selectedRecipientId, setSelectedRecipientId] = useState('U-R01')
+  const currentUser = getCurrentUser()
+  const selectedRecipientId = currentUser?.id
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState(null)
@@ -85,20 +77,7 @@ export default function RecipientDashboard() {
   const [acceptedItems, setAcceptedItems] = useState([])
   const [completedItems, setCompletedItems] = useState([])
 
-  // Load recipient profiles for the demo switch
-  useEffect(() => {
-    getRecipients()
-      .then(res => {
-        if (res?.items && Array.isArray(res.items) && res.items.length > 0) {
-          setRecipients(res.items)
-        }
-      })
-      .catch(() => {
-        // Fallback already in place
-      })
-  }, [])
-
-  const currentRecipient = recipients.find(r => r.id === selectedRecipientId) || recipients[0] || FALLBACK_RECIPIENTS[0]
+  const currentRecipient = currentUser || { name: 'Recipient', organization: 'Your organization', organization_type: 'NGO', location: 'Location not set', capacity: 0 }
 
   // Fetch and categorize donations for a given recipient
   const fetchRecipientData = async (recipientId, signal) => {
@@ -204,7 +183,7 @@ export default function RecipientDashboard() {
     return { offered, accepted, completed }
   }
 
-  // Load on mount and recipient switch
+  // Load the signed-in recipient's assigned donations.
   useEffect(() => {
     let ignore = false
     const controller = new AbortController()
@@ -328,7 +307,7 @@ export default function RecipientDashboard() {
         title="Recipient dashboard"
         subtitle={`Review assignments, accept matches, and confirm physical collections for ${currentRecipient.organization}.`}
       >
-        {/* Demo Identity Switcher */}
+        {/* Signed-in recipient profile */}
         <section
           className="glass-card"
           style={{
@@ -370,32 +349,6 @@ export default function RecipientDashboard() {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <label
-              htmlFor="recipient-select"
-              style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600 }}
-            >
-              Demo switch:
-            </label>
-            <select
-              id="recipient-select"
-              value={selectedRecipientId}
-              onChange={e => setSelectedRecipientId(e.target.value)}
-              style={{
-                background: '#111827',
-                border: '1px solid var(--border)',
-                color: 'var(--text-primary)',
-                padding: '6px 12px',
-                borderRadius: 'var(--radius-sm)',
-                fontSize: '0.8rem',
-                cursor: 'pointer',
-              }}
-            >
-              {recipients.map(r => (
-                <option key={r.id} value={r.id}>
-                  {r.id}: {r.organization} ({r.capacity || 80} meals)
-                </option>
-              ))}
-            </select>
             <button
               onClick={reloadData}
               disabled={refreshing || loading}
@@ -470,7 +423,7 @@ export default function RecipientDashboard() {
         </section>
 
         <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 8, marginBottom: 28 }}>
-          ℹ️ Counts reflect the latest fetched database records for demo actor {selectedRecipientId}. Refreshes on page load and manual refresh.
+          ℹ️ Counts reflect the latest fetched database records visible to your signed-in account.
         </p>
 
         {/* Error notification if any */}

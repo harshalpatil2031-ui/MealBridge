@@ -1,3 +1,5 @@
+import { clearSession, getAccessToken } from './session.js'
+
 /**
  * Minimal fetch wrapper for the MealBridge API.
  *
@@ -36,6 +38,8 @@ export async function request(method, path, { body, params, signal } = {}) {
   }
 
   const headers = {};
+  const token = getAccessToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
   if (body !== undefined) {
     headers['Content-Type'] = 'application/json';
   }
@@ -71,6 +75,10 @@ export async function request(method, path, { body, params, signal } = {}) {
       message = data.detail.map(e => e.msg || JSON.stringify(e)).join('; ');
     } else {
       message = `Request failed (${response.status})`;
+    }
+    if (response.status === 401 && token && !path.startsWith('/auth/')) {
+      clearSession();
+      window.location.assign('/login');
     }
     throw new Error(message);
   }

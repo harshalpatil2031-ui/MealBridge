@@ -151,9 +151,24 @@ uvicorn main:app --reload
 ```
 
 `python seed.py` creates or refreshes `backend/mealbridge.db` with repeatable
-demo users, donations, rescue timelines, and 60 days of surplus history. Demo
-accounts are listed in the seed script; its placeholder passwords are not
-production credentials.
+demo users, donations, rescue timelines, and 60 days of surplus history. Seeded
+accounts use hashed passwords and sign in through the same API as registered
+users. Donor, NGO, and coordinator demo accounts each use separate passwords.
+
+| Role | Demo email | Demo password |
+| --- | --- | --- |
+| Donor | `harshal@sunrise.in` | `MealBridgeDonor2026!` |
+| NGO recipient | `anita@ashatrust.org` | `MealBridgeNGO2026!` |
+| Coordinator | `admin@mealbridge.in` | `MealBridgeCoordinator2026!` |
+
+Public registration allows donor and recipient accounts. Coordinator accounts
+are seeded and cannot be created through public registration.
+
+The API hashes passwords with PBKDF2 and issues revocable, 12-hour bearer
+sessions. It checks roles and record ownership on protected API routes. This is
+a hackathon prototype: email verification, password reset, login rate limiting,
+and production session hardening are not implemented. Do not reuse the demo
+password or deploy this authentication setup for real users.
 
 ### Environment Variables
 To enable the live IBM watsonx.ai assistant, copy `backend/.env.example` to

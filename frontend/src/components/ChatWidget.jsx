@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useLocation, useParams } from 'react-router-dom'
+import { ArrowUp, MessageCircle } from 'lucide-react'
 import { chatWithAssistant, getAssistantStatus } from '../api/assistant.js'
 
 const quickReplies = ['Latest donation status', 'Show recovery details', 'How does matching work?']
@@ -66,10 +67,10 @@ export default function ChatWidget() {
       <div className="chat-quick-replies">{quickReplies.map(reply => <button key={reply} disabled={typing} onClick={() => send(reply)}>{reply}</button>)}</div>
       <form className="chat-composer" onSubmit={event => { event.preventDefault(); send() }}>
         <input aria-label="Message MealBridge AI" value={input} onChange={event => setInput(event.target.value)} placeholder="Ask about a donation…" />
-        <button aria-label="Send message" disabled={!input.trim() || typing}>➤</button>
+        <button aria-label="Send message" disabled={!input.trim() || typing}><ArrowUp size={17} /></button>
       </form>
       <p className="chat-disclaimer">{assistantStatus.configured ? 'Your question and selected donation details are sent to IBM watsonx.ai for an explanation. Verify statuses before acting.' : 'Add IBM watsonx.ai settings to backend/.env to enable live answers.'}</p>
     </section>}
-    <button className="chat-launcher" aria-label={open ? 'Close chat' : 'Open MealBridge AI chat'} aria-expanded={open} onClick={() => setOpen(value => !value)}>{open ? '×' : '💬'}</button>
+    <button className="chat-launcher" aria-label={open ? 'Close chat' : 'Open MealBridge AI chat'} aria-expanded={open} onClick={() => setOpen(value => !value)}>{open ? '×' : <MessageCircle size={21} />}</button>
   </div>
 }

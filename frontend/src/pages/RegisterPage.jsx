@@ -1,5 +1,9 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
+import { ArrowRight, Building2, CircleAlert, Utensils } from 'lucide-react'
+import { registerAccount, saveSession } from '../api/auth.js'
+
+const ROLE_HOME = { donor: '/donor', recipient: '/recipient' }
 
 export default function RegisterPage() {
   const [role, setRole] = useState('donor')
@@ -9,9 +13,8 @@ export default function RegisterPage() {
   const navigate = useNavigate()
 
   const roles = [
-    { id: 'donor',       label: 'Donor',      icon: '🍽️', desc: 'Restaurant, canteen, hostel, or event caterer' },
-    { id: 'recipient',   label: 'NGO',         icon: '🏠', desc: 'NGO, shelter, community kitchen, or orphanage' },
-    { id: 'coordinator', label: 'Coordinator', icon: '🧑‍💼', desc: 'Platform admin managing the full flow' },
+    { id: 'donor',       label: 'Donor',      Icon: Utensils, desc: 'Restaurant, canteen, hostel, or event caterer' },
+    { id: 'recipient',   label: 'NGO',         Icon: Building2, desc: 'NGO, shelter, community kitchen, or orphanage' },
   ]
 
   const update = (field) => (e) => setForm(f => ({ ...f, [field]: e.target.value }))
@@ -19,17 +22,32 @@ export default function RegisterPage() {
   const handleRegister = async (e) => {
     e.preventDefault()
     setError('')
-    if (!form.name || !form.orgName || !form.email || !form.password) {
-      setError('Please fill in all required fields.')
+    if (!form.name.trim() || !form.orgName.trim() || !form.email.trim() || !form.password || !form.location.trim()) {
+      setError('Please fill in all required fields, including your location.')
+      return
+    }
+    if (form.password.length < 8) {
+      setError('Password must contain at least 8 characters.')
+      return
+    }
+    if (role === 'recipient' && (!Number.isInteger(Number(form.capacity)) || Number(form.capacity) <= 0)) {
+      setError('Enter a meal capacity greater than zero for your NGO account.')
       return
     }
     setLoading(true)
-    await new Promise(r => setTimeout(r, 1400))
-    setLoading(false)
-    localStorage.setItem('mb_user', JSON.stringify({ ...form, role }))
-    if (role === 'donor')       navigate('/donor')
-    if (role === 'recipient')   navigate('/recipient')
-    if (role === 'coordinator') navigate('/coordinator')
+    try {
+      const session = await registerAccount({
+        name: form.name.trim(), organization: form.orgName.trim(), email: form.email.trim(),
+        password: form.password, role, location: form.location.trim(),
+        capacity: role === 'recipient' ? Number(form.capacity) : null,
+      })
+      saveSession(session)
+      navigate(ROLE_HOME[session.user.role] || '/', { replace: true })
+    } catch (registerError) {
+      setError(registerError.message || 'Could not create your account. Please try again.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const inputStyle = {
@@ -74,7 +92,7 @@ export default function RegisterPage() {
               background: 'linear-gradient(135deg,#f97316,#ea580c)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: '1.4rem', boxShadow: '0 4px 20px rgba(249,115,22,0.4)'
-            }}>🍱</div>
+            }}><Utensils size={19} strokeWidth={1.8} color="#fff" /></div>
             <span style={{ fontFamily: 'Space Grotesk,sans-serif', fontWeight: 700, fontSize: '1.4rem', color: 'var(--text-primary)' }}>
               Meal<span className="gradient-text-orange">Bridge</span>
             </span>
@@ -97,7 +115,7 @@ export default function RegisterPage() {
               textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>
               I am joining as...
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 10 }}>
               {roles.map(r => (
                 <button key={r.id} id={`reg-role-${r.id}`} type="button" onClick={() => setRole(r.id)} style={{
                   padding: '14px 8px', borderRadius: 'var(--radius-md)', cursor: 'pointer',
@@ -106,7 +124,7 @@ export default function RegisterPage() {
                   display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
                   transition: 'all 0.2s ease', textAlign: 'center'
                 }}>
-                  <span style={{ fontSize: '1.5rem' }}>{r.icon}</span>
+                  <r.Icon size={22} strokeWidth={1.7} color={role === r.id ? 'var(--orange-light)' : 'var(--text-muted)'} />
                   <span style={{
                     fontSize: '0.78rem', fontWeight: 700,
                     color: role === r.id ? 'var(--orange-light)' : 'var(--text-secondary)'
@@ -157,17 +175,20 @@ export default function RegisterPage() {
 
             {/* Location */}
             <div style={{ marginBottom: role === 'recipient' ? 14 : 24 }}>
-              <label style={labelStyle}>Location / Area</label>
+              <label style={labelStyle}>Location / Area *</label>
               <input id="reg-location" type="text" value={form.location} onChange={update('location')}
                 placeholder="e.g. Pune, Maharashtra" style={inputStyle}
                 onFocus={e => e.target.style.borderColor = '#f97316'}
                 onBlur={e => e.target.style.borderColor = 'var(--border)'} />
+              <small style={{ display: 'block', marginTop: 6, color: 'var(--text-muted)', fontSize: '0.7rem' }}>
+                Matching currently uses an approximate Pune-area map point for new accounts.
+              </small>
             </div>
 
             {/* Capacity — only for recipients */}
             {role === 'recipient' && (
               <div style={{ marginBottom: 24 }}>
-                <label style={labelStyle}>Meal Capacity (portions you can accept per day)</label>
+                <label style={labelStyle}>Meal Capacity (portions you can accept per day) *</label>
                 <input id="reg-capacity" type="number" value={form.capacity} onChange={update('capacity')}
                   placeholder="e.g. 100" style={inputStyle}
                   onFocus={e => e.target.style.borderColor = '#10b981'}
@@ -181,7 +202,7 @@ export default function RegisterPage() {
                 background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)',
                 borderRadius: 'var(--radius-sm)', padding: '10px 14px',
                 color: '#f87171', fontSize: '0.85rem', marginBottom: 16
-              }}>⚠️ {error}</div>
+              }}><CircleAlert size={16} style={{ verticalAlign: 'text-bottom', marginRight: 6 }} />{error}</div>
             )}
 
             {/* Submit */}
@@ -196,7 +217,7 @@ export default function RegisterPage() {
                       display: 'inline-block' }} />
                     Creating account...
                   </span>
-                : `→ Create ${roles.find(r => r.id === role)?.label} Account`}
+                : <><ArrowRight size={17} /> Create {roles.find(r => r.id === role)?.label} Account</>}
             </button>
           </form>
 
