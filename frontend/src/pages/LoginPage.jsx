@@ -11,8 +11,8 @@ const DEMO_ACCOUNTS = {
 }
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+  const [email, setEmail] = useState(DEMO_ACCOUNTS.donor.email)
+  const [password, setPassword] = useState(DEMO_ACCOUNTS.donor.password)
   const [selectedRole, setSelectedRole] = useState('donor')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -119,7 +119,7 @@ export default function LoginPage() {
                 id="login-email"
                 type="email"
                 value={email}
-                onChange={e => { setEmail(e.target.value); setSelectedRole('') }}
+                onChange={e => setEmail(e.target.value)}
                 placeholder="you@organisation.com"
                 style={{
                   width: '100%', padding: '13px 16px',
@@ -141,7 +141,7 @@ export default function LoginPage() {
                 id="login-password"
                 type="password"
                 value={password}
-                onChange={e => { setPassword(e.target.value); setSelectedRole('') }}
+                onChange={e => setPassword(e.target.value)}
                 placeholder="••••••••"
                 style={{
                   width: '100%', padding: '13px 16px',
