@@ -470,7 +470,7 @@ export default function RecipientDashboard() {
         </section>
 
         <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 8, marginBottom: 28 }}>
-          ℹ️ Real-time counts derived from current SQLite database records for demo actor {selectedRecipientId}.
+          ℹ️ Counts reflect the latest fetched database records for demo actor {selectedRecipientId}. Refreshes on page load and manual refresh.
         </p>
 
         {/* Error notification if any */}
@@ -562,6 +562,14 @@ export default function RecipientDashboard() {
                           {isSplit ? ` (of ${donation.quantity} total)` : ''}
                         </span>
                         <span>
+                          📍 Approx. location:{' '}
+                          <b>
+                            {donation.latitude != null && donation.longitude != null
+                              ? `${Number(donation.latitude).toFixed(4)}, ${Number(donation.longitude).toFixed(4)}`
+                              : 'Coordinates pending'}
+                          </b>
+                        </span>
+                        <span>
                           <Countdown deadline={deadline} />
                         </span>
                       </div>
@@ -629,6 +637,12 @@ export default function RecipientDashboard() {
                       <small>
                         From {donation.donor_name || 'Donor'} · ID: {donation.id}
                       </small>
+                      <small style={{ color: 'var(--text-secondary)' }}>
+                        📍 Approx. location:{' '}
+                        {donation.latitude != null && donation.longitude != null
+                          ? `${Number(donation.latitude).toFixed(4)}, ${Number(donation.longitude).toFixed(4)}`
+                          : 'Coordinates pending'}
+                      </small>
                     </div>
 
                     <span>
@@ -649,11 +663,20 @@ export default function RecipientDashboard() {
                       <button
                         className="btn-green compact-btn"
                         onClick={() => handleConfirmHandover(item)}
-                        disabled={isConfirming}
-                        style={{ width: '100%' }}
+                        disabled={item.isPastDeadline || isConfirming}
+                        style={{
+                          width: '100%',
+                          opacity: item.isPastDeadline ? 0.5 : 1,
+                          cursor: item.isPastDeadline ? 'not-allowed' : 'pointer',
+                        }}
                       >
-                        {isConfirming ? 'Confirming…' : 'Confirm Handover'}
+                        {isConfirming ? 'Confirming…' : item.isPastDeadline ? 'Pickup Expired' : 'Confirm Handover'}
                       </button>
+                      {item.isPastDeadline && (
+                        <small style={{ display: 'block', color: '#ef4444', fontSize: '0.68rem', marginTop: 4, textAlign: 'center' }}>
+                          Deadline passed — pickup expired
+                        </small>
+                      )}
                     </div>
                   </div>
                 )

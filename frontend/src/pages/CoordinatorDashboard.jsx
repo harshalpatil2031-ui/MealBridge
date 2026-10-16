@@ -234,7 +234,7 @@ export default function CoordinatorDashboard() {
             },
             {
               icon: '🤝',
-              label: 'In transit / matched',
+              label: 'Matched assignments',
               value: String(matchedDonations.length),
               note: 'Assigned to recipient',
               color: 'blue',
@@ -259,7 +259,7 @@ export default function CoordinatorDashboard() {
         </section>
 
         <p style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: 8, marginBottom: 28 }}>
-          ℹ️ Real metrics derived from live SQLite database. Seeded records are illustrative demo fixtures.
+          ℹ️ Counts reflect the latest fetched database records. Seeded records are illustrative demo fixtures.
         </p>
 
         {/* Error State */}
