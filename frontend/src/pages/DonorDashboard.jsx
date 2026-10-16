@@ -468,7 +468,7 @@ function ActiveDonationCard({ d, onHandover }) {
 }
 
 /* ─── Sidebar ────────────────────────────────────────────────── */
-function Sidebar({ active, onNewDonation }) {
+function Sidebar({ currentUser, active, onNewDonation }) {
   const nav = [
     { id: 'dashboard', icon: '📊', label: 'Dashboard',    href: '/donor' },
     { id: 'donate',    icon: '🍱', label: 'New Donation',  href: '#new' },
