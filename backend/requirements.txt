@@ -1,1 +1,3 @@
-# Issue 24 seed script uses Python's standard library only.
+# MealBridge API dependencies. The SQLite seed script uses the Python standard library.
+fastapi>=0.115,<1.0
+uvicorn[standard]>=0.30,<1.0
