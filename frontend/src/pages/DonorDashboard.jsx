@@ -1,43 +1,37 @@
-import { useState, useEffect } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { Link } from 'react-router-dom'
+import { getDonations, createDonation, matchDonation } from '../api/donations.js'
 
-/* ─── Mock Data ──────────────────────────────────────────────── */
-const mockUser = { name: 'Harshal Patil', org: 'Sunrise Hostel', role: 'donor' }
+/* ─── Mock / Current User ────────────────────────────────────── */
+const currentUser = { id: 'U-D01', name: 'Harshal Patil', org: 'Sunrise Hostel', role: 'donor' }
 
-const mockActiveDonations = [
-  {
-    id: 'D001', food: 'Cooked Meals', type: '🍛', qty: 80, aiEstimate: 75,
-    status: 'RESCUE_TRIGGERED', deadline: Date.now() + 47 * 60 * 1000,
-    matched: 'City Shelter NGO', matchedFailed: true,
-    rescue: { type: 'split', recipients: ['Asha Trust (50)', 'Hope Kitchen (30)'] },
-    confidence: 'High'
-  },
-  {
-    id: 'D002', food: 'Baked Goods', type: '🥖', qty: 40, aiEstimate: 35,
-    status: 'MATCHED', deadline: Date.now() + 110 * 60 * 1000,
-    matched: 'Green Hope NGO', matchedFailed: false,
-    rescue: null, confidence: 'Medium'
-  },
-]
-
-const mockHistory = [
-  { id: 'D-098', food: '🍛 Rice & Dal',      qty: 60,  status: 'RESCUED', recipient: 'Asha Trust',     date: 'Oct 13' },
-  { id: 'D-097', food: '🥖 Bread & Snacks',  qty: 25,  status: 'RESCUED', recipient: 'Hope Kitchen',   date: 'Oct 12' },
-  { id: 'D-096', food: '🍲 Mixed Curry',     qty: 90,  status: 'FAILED',  recipient: '—',              date: 'Oct 11' },
-  { id: 'D-095', food: '🍱 Lunch Boxes',     qty: 50,  status: 'RESCUED', recipient: 'City Shelter',   date: 'Oct 10' },
-  { id: 'D-094', food: '🥗 Salad & Sides',   qty: 20,  status: 'RESCUED', recipient: 'Green Hope NGO', date: 'Oct 09' },
-]
+const EMOJI_MAP = {
+  'Cooked Meals': '🍛',
+  'Rice & Dal': '🍚',
+  'Baked Goods': '🥖',
+  'Packaged Food': '📦',
+  'Raw Produce': '🥬',
+  'Beverages': '🥤',
+  'Mixed / Other': '🍱'
+}
 
 /* ─── Countdown Timer ────────────────────────────────────────── */
 function Countdown({ deadline }) {
-  const [left, setLeft] = useState(Math.max(0, deadline - Date.now()))
+  const [left, setLeft] = useState(() => Math.max(0, deadline - Date.now()))
+
   useEffect(() => {
     const t = setInterval(() => setLeft(Math.max(0, deadline - Date.now())), 1000)
     return () => clearInterval(t)
   }, [deadline])
+
+  if (!deadline || isNaN(deadline)) {
+    return <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>No deadline</span>
+  }
+
   const m = Math.floor(left / 60000)
   const s = Math.floor((left % 60000) / 1000)
   const urgent = m < 30
+
   return (
     <span style={{ color: urgent ? '#ef4444' : '#f97316', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
       ⏱ {m}m {s.toString().padStart(2, '0')}s
@@ -49,11 +43,11 @@ function Countdown({ deadline }) {
 function StatusBadge({ status }) {
   const map = {
     PENDING:          { label: 'Pending',          color: '#fbbf24', bg: 'rgba(234,179,8,0.12)',   dot: '#fbbf24' },
-    MATCHED:          { label: 'Matched',           color: '#60a5fa', bg: 'rgba(59,130,246,0.12)',  dot: '#60a5fa' },
-    ACCEPTED:         { label: 'Accepted',          color: '#a78bfa', bg: 'rgba(139,92,246,0.12)', dot: '#a78bfa' },
-    RESCUE_TRIGGERED: { label: 'Rescue Active',     color: '#f87171', bg: 'rgba(239,68,68,0.12)',  dot: '#ef4444' },
-    RESCUED:          { label: 'Rescued ✓',         color: '#34d399', bg: 'rgba(16,185,129,0.12)', dot: '#10b981' },
-    FAILED:           { label: 'Failed',            color: '#94a3b8', bg: 'rgba(100,116,139,0.12)', dot: '#475569' },
+    MATCHED:          { label: 'Matched',          color: '#60a5fa', bg: 'rgba(59,130,246,0.12)',  dot: '#60a5fa' },
+    ACCEPTED:         { label: 'Accepted',         color: '#a78bfa', bg: 'rgba(139,92,246,0.12)', dot: '#a78bfa' },
+    RESCUE_TRIGGERED: { label: 'Rescue Active',    color: '#f87171', bg: 'rgba(239,68,68,0.12)',  dot: '#ef4444' },
+    RESCUED:          { label: 'Rescued ✓',        color: '#34d399', bg: 'rgba(16,185,129,0.12)', dot: '#10b981' },
+    FAILED:           { label: 'Failed',           color: '#94a3b8', bg: 'rgba(100,116,139,0.12)', dot: '#475569' },
   }
   const s = map[status] || map.PENDING
   return (
@@ -70,11 +64,24 @@ function StatusBadge({ status }) {
 }
 
 /* ─── New Donation Modal ─────────────────────────────────────── */
-function NewDonationModal({ onClose }) {
-  const [form, setForm] = useState({ food: '', qty: '', deadline: '', notes: '' })
-  const [submitted, setSubmitted] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const up = f => e => setForm(p => ({ ...p, [f]: e.target.value }))
+function NewDonationModal({ onClose, onSuccess }) {
+  const [form, setForm] = useState({
+    food_name: '',
+    quantity: '',
+    unit: 'portions',
+    deadline: '',
+    notes: ''
+  })
+  const [submitting, setSubmitting] = useState(false)
+  const [validationError, setValidationError] = useState(null)
+  const [apiError, setApiError] = useState(null)
+  const [outcome, setOutcome] = useState(null)
+
+  const up = f => e => {
+    setValidationError(null)
+    setApiError(null)
+    setForm(p => ({ ...p, [f]: e.target.value }))
+  }
 
   const inputSt = {
     width: '100%', padding: '12px 14px',
@@ -86,10 +93,79 @@ function NewDonationModal({ onClose }) {
 
   const handleSubmit = async e => {
     e.preventDefault()
-    setLoading(true)
-    await new Promise(r => setTimeout(r, 1200))
-    setLoading(false)
-    setSubmitted(true)
+    setValidationError(null)
+    setApiError(null)
+
+    if (!form.food_name) {
+      setValidationError('Please select a food type.')
+      return
+    }
+
+    const qty = parseInt(form.quantity, 10)
+    if (isNaN(qty) || qty <= 0) {
+      setValidationError('Quantity must be a positive number.')
+      return
+    }
+
+    if (!form.deadline) {
+      setValidationError('Please specify a collection deadline.')
+      return
+    }
+
+    const deadlineDate = new Date(form.deadline)
+    if (isNaN(deadlineDate.getTime())) {
+      setValidationError('Invalid collection deadline date.')
+      return
+    }
+
+    if (deadlineDate.getTime() <= Date.now()) {
+      setValidationError('Collection deadline must be in the future.')
+      return
+    }
+
+    setSubmitting(true)
+
+    let createdDonation = null
+    try {
+      // 1. Create donation
+      const createRes = await createDonation({
+        donor_id: currentUser.id,
+        food_name: form.food_name,
+        quantity: qty,
+        unit: form.unit || 'portions',
+        pickup_deadline: deadlineDate.toISOString(),
+        latitude: 18.5074,
+        longitude: 73.8077,
+        notes: form.notes.trim() ? form.notes.trim() : null
+      })
+      createdDonation = createRes.donation
+    } catch (err) {
+      setSubmitting(false)
+      setApiError(err.message || 'Failed to create donation')
+      return
+    }
+
+    // 2. Perform rule-based matching
+    try {
+      const matchRes = await matchDonation(createdDonation.id, { actor_id: currentUser.id })
+      setOutcome({
+        donation: matchRes.donation || createdDonation,
+        recipient: matchRes.selected_recipient,
+        noMatchReason: matchRes.no_match_reason,
+        partialError: null
+      })
+    } catch (err) {
+      // Partial success: donation created in database, but match call failed
+      setOutcome({
+        donation: createdDonation,
+        recipient: null,
+        noMatchReason: null,
+        partialError: err.message || 'Automatic matching could not be completed.'
+      })
+    } finally {
+      setSubmitting(false)
+      if (onSuccess) onSuccess()
+    }
   }
 
   return (
@@ -103,60 +179,109 @@ function NewDonationModal({ onClose }) {
         borderRadius: 'var(--radius-xl)', padding: '36px 32px',
         width: '100%', maxWidth: 480, boxShadow: '0 30px 70px rgba(0,0,0,0.6)'
       }}>
-        {submitted ? (
-          <div style={{ textAlign: 'center', padding: '20px 0' }}>
-            <div style={{ fontSize: '3.5rem', marginBottom: 16 }}>✅</div>
-            <h3 style={{ fontFamily: 'Space Grotesk,sans-serif', fontSize: '1.4rem', marginBottom: 10 }}>
-              Donation Logged!
+        {outcome ? (
+          <div style={{ textAlign: 'center', padding: '10px 0' }}>
+            <div style={{ fontSize: '3rem', marginBottom: 12 }}>
+              {outcome.partialError ? '⚠️' : outcome.recipient ? '✅' : '⏳'}
+            </div>
+            <h3 style={{ fontFamily: 'Space Grotesk,sans-serif', fontSize: '1.4rem', marginBottom: 8 }}>
+              {outcome.partialError
+                ? 'Donation Logged (Matching Pending)'
+                : outcome.recipient
+                  ? 'Donation Logged & Matched!'
+                  : 'Donation Logged!'}
             </h3>
-            <p style={{ color: 'var(--text-secondary)', marginBottom: 24, fontSize: '0.9rem' }}>
-              Our AI is matching your donation with the best recipient. You'll be notified within 2 minutes.
+
+            <div style={{
+              background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border)',
+              borderRadius: 'var(--radius-md)', padding: '14px', margin: '16px 0',
+              textAlign: 'left', fontSize: '0.85rem'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                <span style={{ color: 'var(--text-muted)' }}>Donation ID:</span>
+                <span style={{ fontFamily: 'monospace', color: 'var(--orange-light)', fontWeight: 700 }}>
+                  {outcome.donation.id}
+                </span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                <span style={{ color: 'var(--text-muted)' }}>Status:</span>
+                <StatusBadge status={outcome.donation.status} />
+              </div>
+
+              {outcome.recipient && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, paddingTop: 6, borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+                  <span style={{ color: 'var(--text-muted)' }}>Matched Recipient:</span>
+                  <span style={{ fontWeight: 600, color: '#60a5fa' }}>{outcome.recipient.name}</span>
+                </div>
+              )}
+
+              {outcome.noMatchReason && (
+                <div style={{ marginTop: 8, color: '#fbbf24', fontSize: '0.8rem' }}>
+                  Notice: {outcome.noMatchReason}
+                </div>
+              )}
+
+              {outcome.partialError && (
+                <div style={{ marginTop: 8, color: '#f87171', fontSize: '0.8rem' }}>
+                  Matching error: {outcome.partialError}
+                </div>
+              )}
+            </div>
+
+            <p style={{ color: 'var(--text-secondary)', marginBottom: 20, fontSize: '0.85rem' }}>
+              {outcome.recipient
+                ? 'Rule-based matching complete. The recipient has been assigned.'
+                : outcome.noMatchReason
+                  ? 'Your donation is pending until an eligible recipient has available capacity.'
+                  : 'Your donation has been registered and is stored in the database.'}
             </p>
+
             <button className="btn-primary" onClick={onClose} style={{ width: '100%', justifyContent: 'center' }}>
               Back to Dashboard
             </button>
           </div>
         ) : (
           <>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
               <div>
                 <h3 style={{ fontFamily: 'Space Grotesk,sans-serif', fontSize: '1.3rem', marginBottom: 4 }}>
                   Log New Donation
                 </h3>
                 <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                  AI will match you with the best recipient instantly
+                  Rule-based matching will find an eligible recipient
                 </p>
               </div>
-              <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-muted)',
-                fontSize: '1.4rem', cursor: 'pointer', lineHeight: 1 }}>✕</button>
+              <button onClick={onClose} style={{
+                background: 'none', border: 'none', color: 'var(--text-muted)',
+                fontSize: '1.4rem', cursor: 'pointer', lineHeight: 1
+              }}>✕</button>
             </div>
 
-            {/* AI Prediction Banner */}
-            <div style={{
-              background: 'rgba(249,115,22,0.08)', border: '1px solid rgba(249,115,22,0.25)',
-              borderRadius: 'var(--radius-md)', padding: '12px 16px', marginBottom: 22,
-              display: 'flex', alignItems: 'center', gap: 12
-            }}>
-              <span style={{ fontSize: '1.4rem' }}>🤖</span>
-              <div>
-                <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--orange-light)' }}>
-                  AI Surplus Estimate
-                </div>
-                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                  Based on your history: <strong style={{ color: 'var(--text-primary)' }}>~75 portions</strong> expected surplus today
-                </div>
-              </div>
+            {validationError && (
               <div style={{
-                marginLeft: 'auto', background: 'rgba(16,185,129,0.15)', color: '#34d399',
-                padding: '3px 10px', borderRadius: 999, fontSize: '0.7rem', fontWeight: 700, whiteSpace: 'nowrap'
-              }}>High Confidence</div>
-            </div>
+                background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)',
+                borderRadius: 'var(--radius-md)', padding: '10px 14px', marginBottom: 16,
+                color: '#f87171', fontSize: '0.85rem'
+              }}>
+                {validationError}
+              </div>
+            )}
+
+            {apiError && (
+              <div style={{
+                background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)',
+                borderRadius: 'var(--radius-md)', padding: '10px 14px', marginBottom: 16,
+                color: '#f87171', fontSize: '0.85rem'
+              }}>
+                Server error: {apiError}
+              </div>
+            )}
 
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <div>
                 <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600,
                   color: 'var(--text-secondary)', marginBottom: 7 }}>Food Type *</label>
-                <select id="donation-food" value={form.food} onChange={up('food')} required style={inputSt}>
+                <select id="donation-food" value={form.food_name} onChange={up('food_name')} required style={inputSt}>
                   <option value="">Select food type...</option>
                   <option>Cooked Meals</option>
                   <option>Rice & Dal</option>
@@ -168,13 +293,25 @@ function NewDonationModal({ onClose }) {
                 </select>
               </div>
 
-              <div>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600,
-                  color: 'var(--text-secondary)', marginBottom: 7 }}>Estimated Quantity (portions) *</label>
-                <input id="donation-qty" type="number" value={form.qty} onChange={up('qty')}
-                  placeholder="e.g. 80" required min="1" style={inputSt}
-                  onFocus={e => e.target.style.borderColor = '#f97316'}
-                  onBlur={e => e.target.style.borderColor = 'var(--border)'} />
+              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 12 }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600,
+                    color: 'var(--text-secondary)', marginBottom: 7 }}>Quantity *</label>
+                  <input id="donation-qty" type="number" value={form.quantity} onChange={up('quantity')}
+                    placeholder="e.g. 50" required min="1" step="1" style={inputSt}
+                    onFocus={e => e.target.style.borderColor = '#f97316'}
+                    onBlur={e => e.target.style.borderColor = 'var(--border)'} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600,
+                    color: 'var(--text-secondary)', marginBottom: 7 }}>Unit</label>
+                  <select value={form.unit} onChange={up('unit')} style={inputSt}>
+                    <option value="portions">portions</option>
+                    <option value="meals">meals</option>
+                    <option value="kg">kg</option>
+                    <option value="boxes">boxes</option>
+                  </select>
+                </div>
               </div>
 
               <div>
@@ -190,15 +327,15 @@ function NewDonationModal({ onClose }) {
                 <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600,
                   color: 'var(--text-secondary)', marginBottom: 7 }}>Notes (optional)</label>
                 <textarea id="donation-notes" value={form.notes} onChange={up('notes')}
-                  placeholder="e.g. Packed in containers, veg only, stairs access..." rows={2}
+                  placeholder="e.g. Packed in containers, veg only, pickup via gate 2..." rows={2}
                   style={{ ...inputSt, resize: 'none', lineHeight: 1.5 }}
                   onFocus={e => e.target.style.borderColor = '#f97316'}
                   onBlur={e => e.target.style.borderColor = 'var(--border)'} />
               </div>
 
               <button id="donation-submit" type="submit" className="btn-primary"
-                style={{ justifyContent: 'center', marginTop: 4 }} disabled={loading}>
-                {loading
+                style={{ justifyContent: 'center', marginTop: 4 }} disabled={submitting}>
+                {submitting
                   ? <span style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center' }}>
                       <span style={{ width: 14, height: 14, border: '2px solid rgba(255,255,255,0.3)',
                         borderTopColor: '#fff', borderRadius: '50%', animation: 'spin-slow 0.7s linear infinite',
@@ -216,8 +353,11 @@ function NewDonationModal({ onClose }) {
 }
 
 /* ─── Active Donation Card ───────────────────────────────────── */
-function ActiveDonationCard({ d, onHandover }) {
+function ActiveDonationCard({ d }) {
   const isRescue = d.status === 'RESCUE_TRIGGERED'
+  const emoji = EMOJI_MAP[d.food_name] || '🍱'
+  const deadlineMs = d.pickup_deadline ? new Date(d.pickup_deadline).getTime() : 0
+
   return (
     <div style={{
       background: isRescue ? 'rgba(239,68,68,0.05)' : 'rgba(17,24,39,0.8)',
@@ -240,36 +380,18 @@ function ActiveDonationCard({ d, onHandover }) {
             width: 50, height: 50, borderRadius: 14,
             background: isRescue ? 'rgba(239,68,68,0.15)' : 'rgba(249,115,22,0.12)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.6rem'
-          }}>{d.type}</div>
+          }}>{emoji}</div>
           <div>
-            <div style={{ fontWeight: 700, fontSize: '1rem', marginBottom: 4 }}>{d.food}</div>
+            <div style={{ fontWeight: 700, fontSize: '1rem', marginBottom: 4 }}>{d.food_name}</div>
             <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-              {d.qty} portions · ID: <span style={{ fontFamily: 'monospace', color: 'var(--orange-light)' }}>{d.id}</span>
+              {d.quantity} {d.unit || 'portions'} · ID: <span style={{ fontFamily: 'monospace', color: 'var(--orange-light)' }}>{d.id}</span>
             </div>
           </div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
           <StatusBadge status={d.status} />
-          <Countdown deadline={d.deadline} />
+          {deadlineMs > 0 && <Countdown deadline={deadlineMs} />}
         </div>
-      </div>
-
-      {/* AI Estimate bar */}
-      <div style={{
-        background: 'rgba(249,115,22,0.07)', border: '1px solid rgba(249,115,22,0.15)',
-        borderRadius: 'var(--radius-sm)', padding: '10px 14px', marginBottom: 16,
-        display: 'flex', alignItems: 'center', gap: 10
-      }}>
-        <span>🤖</span>
-        <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-          AI Estimate: <strong style={{ color: 'var(--orange-light)' }}>~{d.aiEstimate} portions</strong>
-        </span>
-        <span style={{
-          marginLeft: 'auto', fontSize: '0.7rem', fontWeight: 700,
-          color: d.confidence === 'High' ? '#34d399' : '#fbbf24',
-          background: d.confidence === 'High' ? 'rgba(16,185,129,0.12)' : 'rgba(234,179,8,0.12)',
-          padding: '2px 10px', borderRadius: 999
-        }}>{d.confidence} Confidence</span>
       </div>
 
       {/* Match / Rescue info */}
@@ -280,25 +402,14 @@ function ActiveDonationCard({ d, onHandover }) {
             borderRadius: 'var(--radius-sm)', padding: '12px 14px', marginBottom: 12
           }}>
             <div style={{ fontSize: '0.82rem', color: '#f87171', fontWeight: 700, marginBottom: 4 }}>
-              ⚠️ {d.matched} cancelled pickup
+              ⚠️ {d.matched_recipient_name || 'Assigned recipient'} pickup issue reported
             </div>
             <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-              Rescue Recovery Engine found a split donation solution
+              Rescue Recovery protocol active. Split distribution or backup coordinator handling.
             </div>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {d.rescue.recipients.map((r, i) => (
-              <div key={i} style={{
-                display: 'flex', alignItems: 'center', gap: 10,
-                background: 'rgba(16,185,129,0.07)', border: '1px solid rgba(16,185,129,0.25)',
-                borderRadius: 'var(--radius-sm)', padding: '10px 14px'
-              }}>
-                <span>🏠</span>
-                <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>{r}</span>
-                <span style={{ marginLeft: 'auto', fontSize: '0.75rem', color: '#34d399', fontWeight: 700 }}>Accepted ✓</span>
-              </div>
-            ))}
-            <Link to="/rescue" style={{
+            <Link to={`/rescue?donationId=${encodeURIComponent(d.id)}`} style={{
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
               padding: '10px', borderRadius: 'var(--radius-sm)', textDecoration: 'none',
               background: 'rgba(249,115,22,0.1)', border: '1px solid rgba(249,115,22,0.3)',
@@ -307,29 +418,50 @@ function ActiveDonationCard({ d, onHandover }) {
             }}>⚡ View Full Rescue Details →</Link>
           </div>
         </div>
-      ) : (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12,
-            background: 'rgba(59,130,246,0.07)', border: '1px solid rgba(59,130,246,0.2)',
-            borderRadius: 'var(--radius-sm)', padding: '12px 14px'
-          }}>
-            <span style={{ fontSize: '1.1rem' }}>🎯</span>
-            <div>
-              <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#60a5fa' }}>Matched with {d.matched}</div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Awaiting pickup confirmation</div>
+      ) : d.status === 'MATCHED' ? (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 12,
+          background: 'rgba(59,130,246,0.07)', border: '1px solid rgba(59,130,246,0.2)',
+          borderRadius: 'var(--radius-sm)', padding: '12px 14px'
+        }}>
+          <span style={{ fontSize: '1.1rem' }}>🎯</span>
+          <div>
+            <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#60a5fa' }}>
+              Matched with {d.matched_recipient_name || 'Recipient'}
             </div>
-            <div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
-              <Link to="/matching" style={{
-                padding: '8px 14px', borderRadius: 'var(--radius-sm)', fontSize: '0.8rem',
-                background: 'rgba(59,130,246,0.15)', color: '#60a5fa', textDecoration: 'none',
-                fontWeight: 600, border: '1px solid rgba(59,130,246,0.3)'
-              }}>View Matches</Link>
-              <button id={`confirm-handover-${d.id}`} onClick={() => onHandover(d.id)}
-                className="btn-green" style={{ padding: '8px 16px', fontSize: '0.8rem' }}>
-                Confirm Handover
-              </button>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Awaiting pickup confirmation</div>
+          </div>
+          <div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
+            <Link to={`/matching?donationId=${encodeURIComponent(d.id)}`} style={{
+              padding: '8px 14px', borderRadius: 'var(--radius-sm)', fontSize: '0.8rem',
+              background: 'rgba(59,130,246,0.15)', color: '#60a5fa', textDecoration: 'none',
+              fontWeight: 600, border: '1px solid rgba(59,130,246,0.3)'
+            }}>View Matches</Link>
+          </div>
+        </div>
+      ) : (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 12,
+          background: 'rgba(251,191,36,0.07)', border: '1px solid rgba(251,191,36,0.2)',
+          borderRadius: 'var(--radius-sm)', padding: '12px 14px'
+        }}>
+          <span style={{ fontSize: '1.1rem' }}>⏳</span>
+          <div>
+            <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#fbbf24' }}>
+              Pending Match
+            </div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+              Eligible recipient candidates are being evaluated
             </div>
           </div>
-
+          <div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
+            <Link to={`/matching?donationId=${encodeURIComponent(d.id)}`} style={{
+              padding: '8px 14px', borderRadius: 'var(--radius-sm)', fontSize: '0.8rem',
+              background: 'rgba(251,191,36,0.15)', color: '#fbbf24', textDecoration: 'none',
+              fontWeight: 600, border: '1px solid rgba(251,191,36,0.3)'
+            }}>View Matching Details</Link>
+          </div>
+        </div>
       )}
     </div>
   )
@@ -375,7 +507,7 @@ function Sidebar({ active }) {
           <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'rgba(249,115,22,0.2)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem' }}>🍽️</div>
           <div>
-            <div style={{ fontSize: '0.82rem', fontWeight: 700 }}>{mockUser.org}</div>
+            <div style={{ fontSize: '0.82rem', fontWeight: 700 }}>{currentUser.org}</div>
             <div style={{ fontSize: '0.72rem', color: 'var(--orange-light)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Donor</div>
           </div>
         </div>
@@ -422,15 +554,91 @@ function Sidebar({ active }) {
 /* ─── Main Dashboard Page ────────────────────────────────────── */
 export default function DonorDashboard() {
   const [showModal, setShowModal] = useState(false)
-  const [donations, setDonations] = useState(mockActiveDonations)
+  const [donations, setDonations] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+  const [error, setError] = useState(null)
 
-  const handleHandover = (id) => {
-    setDonations(prev => prev.map(d => d.id === id ? { ...d, status: 'RESCUED' } : d))
-  }
+  const abortRef = useRef(null)
 
-  const totalMeals   = mockHistory.filter(h => h.status === 'RESCUED').reduce((a, h) => a + h.qty, 0)
-  const rescueRate   = Math.round(mockHistory.filter(h => h.status === 'RESCUED').length / mockHistory.length * 100)
-  const totalDonations = mockHistory.length + donations.length
+  const fetchDonations = useCallback(async (isManualRefresh = false) => {
+    if (abortRef.current) {
+      abortRef.current.abort()
+    }
+    const controller = new AbortController()
+    abortRef.current = controller
+
+    if (isManualRefresh) {
+      setRefreshing(true)
+    }
+    setError(null)
+
+    try {
+      const data = await getDonations({
+        donorId: currentUser.id,
+        signal: controller.signal
+      })
+      setDonations(data.items || [])
+    } catch (err) {
+      if (err.name === 'AbortError') return
+      setError(err.message || 'Failed to fetch donations.')
+    } finally {
+      setLoading(false)
+      setRefreshing(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    let ignore = false
+    const controller = new AbortController()
+    abortRef.current = controller
+
+    getDonations({
+      donorId: currentUser.id,
+      signal: controller.signal
+    })
+      .then(data => {
+        if (!ignore) {
+          setDonations(data.items || [])
+          setLoading(false)
+        }
+      })
+      .catch(err => {
+        if (!ignore && err.name !== 'AbortError') {
+          setError(err.message || 'Failed to fetch donations.')
+          setLoading(false)
+        }
+      })
+
+    return () => {
+      ignore = true
+      controller.abort()
+    }
+  }, [])
+
+  // Split donations into Active vs Completed/History
+  const activeDonations = donations.filter(d =>
+    d.status === 'PENDING' || d.status === 'MATCHED' || d.status === 'RESCUE_TRIGGERED'
+  )
+
+  const historyDonations = donations.filter(d =>
+    d.status === 'RESCUED' || d.status === 'FAILED' || d.status === 'ACCEPTED'
+  )
+
+  // Impact metrics
+  const totalDonations = donations.length
+  const totalMeals = donations
+    .filter(d => d.status === 'RESCUED')
+    .reduce((sum, d) => sum + (Number(d.quantity) || 0), 0)
+
+  const rescuedCount = donations.filter(d => d.status === 'RESCUED').length
+  const rescueRate = totalDonations > 0 ? Math.round((rescuedCount / totalDonations) * 100) : 0
+
+  const uniqueRecipients = new Set(
+    donations
+      .map(d => d.matched_recipient_id)
+      .filter(Boolean)
+  ).size
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: 'transparent' }}>
@@ -448,12 +656,12 @@ export default function DonorDashboard() {
         }}>
           <div>
             <h1 style={{ fontFamily: 'Space Grotesk,sans-serif', fontSize: '1.3rem', fontWeight: 700, marginBottom: 2 }}>
-              Good evening, {mockUser.name.split(' ')[0]} 👋
+              Good evening, {currentUser.name.split(' ')[0]} 👋
             </h1>
             <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-              {donations.filter(d => d.status === 'RESCUE_TRIGGERED').length > 0
+              {activeDonations.some(d => d.status === 'RESCUE_TRIGGERED')
                 ? '⚠️ You have active rescues in progress'
-                : '✅ All donations are on track'}
+                : '✅ All donations are monitored'}
             </p>
           </div>
           <button id="new-donation-btn" className="btn-primary" onClick={() => setShowModal(true)}>
@@ -464,29 +672,54 @@ export default function DonorDashboard() {
         <div style={{ padding: '28px 32px' }}>
 
           {/* Impact Stats */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 32 }}>
-            {[
-              { icon: '🍱', value: totalDonations, label: 'Total Donations',   color: '#f97316', suffix: '' },
-              { icon: '✅', value: totalMeals,     label: 'Meals Rescued',     color: '#10b981', suffix: '' },
-              { icon: '🎯', value: rescueRate,     label: 'Rescue Rate',       color: '#60a5fa', suffix: '%' },
-              { icon: '🏠', value: 4,              label: 'NGOs Helped',       color: '#a78bfa', suffix: '' },
-            ].map(s => (
-              <div key={s.label} style={{
-                background: 'var(--bg-card)', border: '1px solid var(--border)',
-                borderRadius: 'var(--radius-md)', padding: '20px',
-                transition: 'all 0.25s ease'
-              }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = s.color; e.currentTarget.style.transform = 'translateY(-3px)' }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.transform = 'none' }}
-              >
-                <div style={{ fontSize: '1.5rem', marginBottom: 8 }}>{s.icon}</div>
-                <div style={{ fontSize: '1.9rem', fontWeight: 800, color: s.color, fontFamily: 'Space Grotesk,sans-serif', lineHeight: 1 }}>
-                  {s.value}{s.suffix}
+          <div id="impact" style={{ marginBottom: 32 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16 }}>
+              {[
+                { icon: '🍱', value: totalDonations,  label: 'Total Donations',   color: '#f97316', suffix: '' },
+                { icon: '✅', value: totalMeals,      label: 'Meals Rescued',     color: '#10b981', suffix: '' },
+                { icon: '🎯', value: rescueRate,      label: 'Rescue Rate',       color: '#60a5fa', suffix: '%' },
+                { icon: '🏠', value: uniqueRecipients, label: 'NGOs Helped',      color: '#a78bfa', suffix: '' },
+              ].map(s => (
+                <div key={s.label} style={{
+                  background: 'var(--bg-card)', border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius-md)', padding: '20px',
+                  transition: 'all 0.25s ease'
+                }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = s.color; e.currentTarget.style.transform = 'translateY(-3px)' }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.transform = 'none' }}
+                >
+                  <div style={{ fontSize: '1.5rem', marginBottom: 8 }}>{s.icon}</div>
+                  <div style={{ fontSize: '1.9rem', fontWeight: 800, color: s.color, fontFamily: 'Space Grotesk,sans-serif', lineHeight: 1 }}>
+                    {s.value}{s.suffix}
+                  </div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: 6 }}>{s.label}</div>
                 </div>
-                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: 6 }}>{s.label}</div>
-              </div>
-            ))}
+              ))}
+            </div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 8, textAlign: 'right' }}>
+              (computed from demo & live records)
+            </div>
           </div>
+
+          {/* Error Banner */}
+          {error && (
+            <div style={{
+              background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)',
+              borderRadius: 'var(--radius-md)', padding: '16px 20px', marginBottom: 24,
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+            }}>
+              <div style={{ color: '#f87171', fontSize: '0.9rem' }}>
+                ⚠️ {error}
+              </div>
+              <button onClick={() => { setLoading(true); fetchDonations(false) }} style={{
+                background: 'rgba(239,68,68,0.2)', border: '1px solid rgba(239,68,68,0.4)',
+                color: '#fca5a5', padding: '6px 14px', borderRadius: 'var(--radius-sm)',
+                cursor: 'pointer', fontWeight: 600, fontSize: '0.8rem'
+              }}>
+                Retry
+              </button>
+            </div>
+          )}
 
           {/* Active Donations */}
           <div style={{ marginBottom: 36 }}>
@@ -496,18 +729,53 @@ export default function DonorDashboard() {
                 <span style={{
                   marginLeft: 10, background: 'rgba(249,115,22,0.15)', color: 'var(--orange-light)',
                   padding: '2px 10px', borderRadius: 999, fontSize: '0.78rem', fontWeight: 700
-                }}>{donations.length}</span>
+                }}>{activeDonations.length}</span>
               </h2>
-              <button id="refresh-btn" onClick={() => {}} style={{
+              <button id="refresh-btn" onClick={() => fetchDonations(true)} disabled={refreshing || loading} style={{
                 background: 'none', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)',
-                color: 'var(--text-secondary)', padding: '6px 14px', cursor: 'pointer', fontSize: '0.8rem'
-              }}>↻ Refresh</button>
+                color: 'var(--text-secondary)', padding: '6px 14px', cursor: 'pointer', fontSize: '0.8rem',
+                display: 'inline-flex', alignItems: 'center', gap: 6
+              }}>
+                <span style={{
+                  display: 'inline-block',
+                  animation: refreshing ? 'spin-slow 0.8s linear infinite' : 'none'
+                }}>↻</span>
+                {refreshing ? 'Refreshing…' : 'Refresh'}
+              </button>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              {donations.map(d => (
-                <ActiveDonationCard key={d.id} d={d} onHandover={handleHandover} />
-              ))}
-            </div>
+
+            {loading ? (
+              <div style={{
+                textAlign: 'center', padding: '48px 0', color: 'var(--text-secondary)',
+                background: 'var(--bg-card)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)'
+              }}>
+                <div style={{
+                  width: 28, height: 28, border: '3px solid rgba(249,115,22,0.2)',
+                  borderTopColor: 'var(--orange-primary)', borderRadius: '50%',
+                  animation: 'spin-slow 0.8s linear infinite', margin: '0 auto 12px'
+                }} />
+                Loading donations…
+              </div>
+            ) : activeDonations.length === 0 ? (
+              <div style={{
+                textAlign: 'center', padding: '40px 20px', color: 'var(--text-secondary)',
+                background: 'var(--bg-card)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border)'
+              }}>
+                <div style={{ fontSize: '2rem', marginBottom: 10 }}>🍲</div>
+                <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>
+                  No active donations
+                </div>
+                <div style={{ fontSize: '0.85rem' }}>
+                  Log your surplus food to start matching with community recipients.
+                </div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                {activeDonations.map(d => (
+                  <ActiveDonationCard key={d.id} d={d} />
+                ))}
+              </div>
+            )}
           </div>
 
           {/* History Table */}
@@ -521,38 +789,57 @@ export default function DonorDashboard() {
             }}>
               {/* Table head */}
               <div style={{
-                display: 'grid', gridTemplateColumns: '80px 1fr 80px 1fr 110px 90px',
+                display: 'grid', gridTemplateColumns: '120px 1fr 100px 1.2fr 110px 110px',
                 padding: '12px 20px', borderBottom: '1px solid var(--border)',
                 fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)',
                 textTransform: 'uppercase', letterSpacing: '0.06em'
               }}>
                 <span>ID</span><span>Food</span><span>Qty</span><span>Recipient</span><span>Date</span><span>Status</span>
               </div>
-              {mockHistory.map((h, i) => (
-                <div key={h.id} style={{
-                  display: 'grid', gridTemplateColumns: '80px 1fr 80px 1fr 110px 90px',
-                  padding: '14px 20px', borderBottom: i < mockHistory.length - 1 ? '1px solid var(--border)' : 'none',
-                  fontSize: '0.875rem', alignItems: 'center',
-                  transition: 'background 0.2s'
-                }}
-                  onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'}
-                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                >
-                  <span style={{ fontFamily: 'monospace', fontSize: '0.78rem', color: 'var(--orange-light)' }}>{h.id}</span>
-                  <span>{h.food}</span>
-                  <span style={{ color: 'var(--text-secondary)' }}>{h.qty}</span>
-                  <span style={{ color: 'var(--text-secondary)' }}>{h.recipient}</span>
-                  <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>{h.date}</span>
-                  <StatusBadge status={h.status} />
+
+              {historyDonations.length === 0 ? (
+                <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                  No completed donations in history yet.
                 </div>
-              ))}
+              ) : (
+                historyDonations.map((h, i) => {
+                  const dateStr = h.created_at
+                    ? new Date(h.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+                    : '—'
+                  return (
+                    <div key={h.id} style={{
+                      display: 'grid', gridTemplateColumns: '120px 1fr 100px 1.2fr 110px 110px',
+                      padding: '14px 20px', borderBottom: i < historyDonations.length - 1 ? '1px solid var(--border)' : 'none',
+                      fontSize: '0.875rem', alignItems: 'center',
+                      transition: 'background 0.2s'
+                    }}
+                      onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.02)'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                    >
+                      <span style={{ fontFamily: 'monospace', fontSize: '0.78rem', color: 'var(--orange-light)' }}>{h.id}</span>
+                      <span>{EMOJI_MAP[h.food_name] || '🍱'} {h.food_name}</span>
+                      <span style={{ color: 'var(--text-secondary)' }}>{h.quantity} {h.unit || ''}</span>
+                      <span style={{ color: 'var(--text-secondary)' }}>{h.matched_recipient_name || '—'}</span>
+                      <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>{dateStr}</span>
+                      <div>
+                        <StatusBadge status={h.status} />
+                      </div>
+                    </div>
+                  )
+                })
+              )}
             </div>
           </div>
         </div>
       </main>
 
       {/* Modal */}
-      {showModal && <NewDonationModal onClose={() => setShowModal(false)} />}
+      {showModal && (
+        <NewDonationModal
+          onClose={() => setShowModal(false)}
+          onSuccess={() => fetchDonations(false)}
+        />
+      )}
     </div>
   )
 }
