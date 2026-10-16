@@ -210,8 +210,8 @@ export default function RecipientDashboard() {
     }
   }, [selectedRecipientId])
 
-  const reloadData = useCallback(async () => {
-    setRefreshing(true)
+  const reloadData = useCallback(async ({ silent = false } = {}) => {
+    if (!silent) setRefreshing(true)
     setError(null)
     try {
       const data = await fetchRecipientData(selectedRecipientId)
@@ -223,10 +223,20 @@ export default function RecipientDashboard() {
         setError(err.message || 'Failed to load recipient donations.')
       }
     } finally {
-      setRefreshing(false)
+      if (!silent) setRefreshing(false)
       setLoading(false)
     }
   }, [selectedRecipientId])
+
+  // Keep an open recipient dashboard current when a donor's match is assigned.
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        void reloadData({ silent: true })
+      }
+    }, 10_000)
+    return () => window.clearInterval(timer)
+  }, [reloadData])
 
   // Accept match or split
   const handleAccept = async item => {

@@ -207,7 +207,7 @@ function NewDonationModal({ currentUser, onClose, onSuccess }) {
               {outcome.recipient && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, paddingTop: 6, borderTop: '1px solid rgba(255,255,255,0.08)' }}>
                   <span style={{ color: 'var(--text-muted)' }}>Matched Recipient:</span>
-                  <span style={{ fontWeight: 600, color: '#60a5fa' }}>{outcome.recipient.name}</span>
+                  <span style={{ fontWeight: 600, color: '#60a5fa' }}>{outcome.recipient.organization || outcome.recipient.name}</span>
                 </div>
               )}
 
@@ -226,7 +226,7 @@ function NewDonationModal({ currentUser, onClose, onSuccess }) {
 
             <p style={{ color: 'var(--text-secondary)', marginBottom: 20, fontSize: '0.85rem' }}>
               {outcome.recipient
-                ? 'Rule-based matching complete. The recipient has been assigned.'
+                ? `${outcome.recipient.organization || outcome.recipient.name} will see this offer on their recipient dashboard, review the donation details, and accept the pickup.`
                 : outcome.noMatchReason
                   ? 'Your donation is pending until an eligible recipient has available capacity.'
                   : 'Your donation has been registered and is stored in the database.'}
