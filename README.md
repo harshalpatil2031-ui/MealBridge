@@ -156,13 +156,26 @@ accounts are listed in the seed script; its placeholder passwords are not
 production credentials.
 
 ### Environment Variables
-Create a `.env` file in `/backend`:
+To enable the live IBM watsonx.ai assistant, copy `backend/.env.example` to
+`backend/.env` and fill in the values from your watsonx.ai Developer Access
+page. Keep this file local; it is ignored by Git.
+
 ```env
-SECRET_KEY=your_jwt_secret
-DATABASE_URL=sqlite:///./mealbridge.db
-WATSONX_API_KEY=your_ibm_key
-WATSONX_PROJECT_ID=your_project_id
+WATSONX_API_KEY=your_ibm_cloud_api_key
+WATSONX_PROJECT_ID=your_watsonx_project_id
+WATSONX_URL=https://us-south.ml.cloud.ibm.com
+WATSONX_MODEL_ID=your_chat_capable_model_id
 ```
+
+The assistant sends the user's question and a limited snapshot of recent SQLite
+donation/recovery records from FastAPI to watsonx.ai. The API key stays on the
+backend. Without these settings, the widget clearly reports that IBM is not
+connected instead of returning scripted sample answers. Matching and recovery
+decisions remain in the MealBridge backend; the model only explains saved data.
+
+The backend loads its local `.env` file at startup, so restart FastAPI after
+changing these values. The API exposes `GET /assistant/status` and
+`POST /assistant/chat`.
 
 ---
 

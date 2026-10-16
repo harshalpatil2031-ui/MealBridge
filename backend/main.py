@@ -1,10 +1,18 @@
 """MealBridge FastAPI application with SQLite-backed donation workflows."""
 
+from pathlib import Path
+
+from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+# Keep local IBM credentials out of source control and load them before the
+# assistant router reads its configuration.
+load_dotenv(Path(__file__).with_name(".env"))
+
 from api import router
+from assistant import router as assistant_router
 
 app = FastAPI(
     title="MealBridge API",
@@ -43,4 +51,5 @@ async def unexpected_error_handler(_: Request, __: Exception) -> JSONResponse:
 
 
 app.include_router(router)
+app.include_router(assistant_router)
 
