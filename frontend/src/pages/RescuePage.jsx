@@ -21,6 +21,7 @@ export default function RescuePage() {
   const [params] = useSearchParams()
   const donationId = params.get('donationId')
   const [record, setRecord] = useState(null)
+  const [loadedFor, setLoadedFor] = useState('')
   const [loading, setLoading] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -30,11 +31,15 @@ export default function RescuePage() {
 
   const refresh = useCallback(async () => {
     if (!donationId) return
+    setLoadedFor('')
+    setRecord(null)
+    setFailedRecipientId('')
     setLoading(true)
     setError('')
     try {
       const data = await getDonation(donationId)
       setRecord(data)
+      setLoadedFor(donationId)
       setFailedRecipientId(current => current || data.donation.matched_recipient_id || '')
     } catch (err) {
       setError(err.message || 'Could not load donation recovery details.')
@@ -62,10 +67,13 @@ export default function RescuePage() {
     }
   }
 
-  const donation = record?.donation
-  const rescue = record?.rescue
-  const splits = record?.splits || []
-  const events = record?.events || []
+  const currentRecord = loadedFor === donationId ? record : null
+  const donation = currentRecord?.donation
+  const rescue = currentRecord?.rescue
+  const splits = currentRecord?.splits || []
+  const events = currentRecord?.events || []
+  const deadlineMs = donation?.pickup_deadline ? new Date(donation.pickup_deadline).getTime() : NaN
+  const handoverExpired = !Number.isFinite(deadlineMs) || deadlineMs <= now
   const maySimulate = donation?.status === 'MATCHED' && donation.matched_recipient_id && new Date(donation.pickup_deadline).getTime() > now
 
   return <main style={{ minHeight: '100vh', padding: '24px clamp(16px,4vw,48px)', color: 'var(--text-primary)' }}>
@@ -113,12 +121,13 @@ export default function RescuePage() {
                 <div><strong>{split.recipient_name || split.recipient_id}</strong><p style={{ color: 'var(--text-secondary)' }}>{split.quantity} {donation.unit} · {split.status.replaceAll('_', ' ')}</p></div>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   {split.status === 'PROPOSED' && <button className="btn-green compact-btn" disabled={busy} onClick={() => runAction(() => acceptDonation(donation.id, { recipient_id: split.recipient_id, split_id: split.id }))}>Accept split</button>}
-                  {split.status === 'ACCEPTED' && <button className="btn-green compact-btn" disabled={busy} onClick={() => runAction(() => confirmHandover(donation.id, { recipient_id: split.recipient_id, split_id: split.id, confirmed_quantity: split.quantity }))}>Confirm handover</button>}
+                  {split.status === 'ACCEPTED' && <button className="btn-green compact-btn" disabled={busy || handoverExpired} onClick={() => runAction(() => confirmHandover(donation.id, { recipient_id: split.recipient_id, split_id: split.id, confirmed_quantity: split.quantity }))}>{handoverExpired ? 'Pickup expired' : 'Confirm handover'}</button>}
                   {split.status === 'HANDED_OVER' && <span className="status-badge status-rescued">Handover recorded</span>}
                 </div>
               </div>
               {split.accepted_at && <small style={{ color: 'var(--text-muted)' }}>Accepted {formatDate(split.accepted_at)}</small>}
               {split.handover_at && <small style={{ color: 'var(--text-muted)', marginLeft: 10 }}>Handed over {formatDate(split.handover_at)}</small>}
+              {split.status === 'ACCEPTED' && handoverExpired && <small role="status" style={{ display: 'block', color: '#ef4444', marginTop: 6 }}>Deadline passed — pickup expired. Handover cannot be confirmed.</small>}
             </article>)}
           </div> : rescue.status !== 'FAILED' ? <p style={{ marginTop: 12 }}>No rescue splits are recorded yet.</p> : null}
         </section>}
