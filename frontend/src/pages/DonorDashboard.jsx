@@ -148,6 +148,7 @@ function NewDonationModal({ currentUser, onClose, onSuccess }) {
       setOutcome({
         donation: matchRes.donation || createdDonation,
         recipient: matchRes.selected_recipient,
+        eligibleRecipients: (matchRes.candidates || []).map(candidate => candidate.recipient.organization),
         noMatchReason: matchRes.no_match_reason,
         partialError: null
       })
@@ -206,8 +207,14 @@ function NewDonationModal({ currentUser, onClose, onSuccess }) {
 
               {outcome.recipient && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, paddingTop: 6, borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-                  <span style={{ color: 'var(--text-muted)' }}>Matched Recipient:</span>
-                  <span style={{ fontWeight: 600, color: '#60a5fa' }}>{outcome.recipient.name}</span>
+                  <span style={{ color: 'var(--text-muted)' }}>Recommended recipient:</span>
+                  <span style={{ fontWeight: 600, color: '#60a5fa' }}>{outcome.recipient.organization || outcome.recipient.name}</span>
+                </div>
+              )}
+
+              {outcome.eligibleRecipients?.length > 0 && (
+                <div style={{ marginTop: 8, color: 'var(--text-secondary)', fontSize: '0.78rem' }}>
+                  Eligible NGOs can review and accept: {outcome.eligibleRecipients.join(', ')}.
                 </div>
               )}
 
@@ -226,7 +233,7 @@ function NewDonationModal({ currentUser, onClose, onSuccess }) {
 
             <p style={{ color: 'var(--text-secondary)', marginBottom: 20, fontSize: '0.85rem' }}>
               {outcome.recipient
-                ? 'Rule-based matching complete. The recipient has been assigned.'
+                ? 'This offer is visible to eligible NGOs. Each can review the details; the first eligible recipient to accept becomes responsible for pickup.'
                 : outcome.noMatchReason
                   ? 'Your donation is pending until an eligible recipient has available capacity.'
                   : 'Your donation has been registered and is stored in the database.'}
@@ -423,9 +430,9 @@ function ActiveDonationCard({ d, onHandover }) {
           <span style={{ fontSize: '1.1rem' }}>🎯</span>
           <div>
             <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#60a5fa' }}>
-              Matched with {d.matched_recipient_name || 'Recipient'}
+              {d.recipient_accepted ? `Accepted by ${d.matched_recipient_name || 'recipient'}` : `Recommended for ${d.matched_recipient_name || 'a recipient'}`}
             </div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Awaiting pickup confirmation</div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{d.recipient_accepted ? 'Pickup is being coordinated' : 'Awaiting an eligible recipient to accept'}</div>
           </div>
           <div style={{ display: 'flex', gap: 8, marginLeft: 'auto', alignItems: 'center' }}>
             <Link to={`/matching?donationId=${encodeURIComponent(d.id)}`} style={{
@@ -468,7 +475,7 @@ function ActiveDonationCard({ d, onHandover }) {
 }
 
 /* ─── Sidebar ────────────────────────────────────────────────── */
-function Sidebar({ active, onNewDonation }) {
+function Sidebar({ currentUser, active, onNewDonation }) {
   const nav = [
     { id: 'dashboard', icon: '📊', label: 'Dashboard',    href: '/donor' },
     { id: 'donate',    icon: '🍱', label: 'New Donation',  href: '#new' },
@@ -656,6 +663,15 @@ export default function DonorDashboard() {
   }, [])
 
   useEffect(() => {
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible' && !abortRef.current) {
+        void fetchDonations(false)
+      }
+    }, 10_000)
+    return () => window.clearInterval(timer)
+  }, [fetchDonations])
+
+  useEffect(() => {
     let ignore = false
     const controller = new AbortController()
     abortRef.current = controller
@@ -726,7 +742,7 @@ export default function DonorDashboard() {
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: 'transparent' }}>
-      <Sidebar active="dashboard" onNewDonation={() => setShowModal(true)} />
+      <Sidebar currentUser={currentUser} active="dashboard" onNewDonation={() => setShowModal(true)} />
 
       {/* Main */}
       <main style={{ flex: 1, overflow: 'auto' }}>

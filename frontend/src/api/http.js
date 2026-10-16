@@ -45,16 +45,27 @@ export async function request(method, path, { body, params, signal } = {}) {
   }
 
   let response;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(new DOMException('Request timed out', 'TimeoutError')), 12_000);
+  const abortFromCaller = () => controller.abort(signal?.reason);
+  if (signal?.aborted) abortFromCaller();
+  else signal?.addEventListener('abort', abortFromCaller, { once: true });
   try {
     response = await fetch(url, {
       method,
       headers,
       body: body !== undefined ? JSON.stringify(body) : undefined,
-      signal,
+      signal: controller.signal,
     });
   } catch (err) {
-    if (err.name === 'AbortError') throw err;
+    if (signal?.aborted) throw err;
+    if (err.name === 'AbortError' || err.name === 'TimeoutError') {
+      throw new Error('The server took too long to respond. Please try again.');
+    }
     throw new Error('Cannot reach the server. Check that the backend is running.');
+  } finally {
+    clearTimeout(timeoutId);
+    signal?.removeEventListener('abort', abortFromCaller);
   }
 
   if (response.status === 204) return null;

@@ -168,7 +168,6 @@ def login(payload: LoginRequest) -> dict[str, object]:
         if user is None or not _verify_password(payload.password, user["password_hash"]):
             raise HTTPException(status_code=401, detail="Email or password is incorrect.")
         with conn:
-            conn.execute("DELETE FROM auth_sessions WHERE user_id = ?", (user["id"],))
             response = _session_response(conn, user)
     return response
 

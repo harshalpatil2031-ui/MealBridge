@@ -116,7 +116,7 @@ def _donation_row(conn: sqlite3.Connection, donation_id: str) -> sqlite3.Row:
 
 
 def _donation_summary(row: sqlite3.Row) -> dict[str, Any]:
-    return {
+    summary = {
         "id": row["id"],
         "donor_id": row["donor_id"],
         "donor_name": row["donor_name"],
@@ -133,6 +133,9 @@ def _donation_summary(row: sqlite3.Row) -> dict[str, Any]:
         "confidence": row["confidence"],
         "notes": row["notes"],
     }
+    if "recipient_accepted" in row.keys():
+        summary["recipient_accepted"] = bool(row["recipient_accepted"])
+    return summary
 
 
 def _event(conn: sqlite3.Connection, donation_id: str, event_type: str,
@@ -205,8 +208,12 @@ def _can_view_donation(conn: sqlite3.Connection, donation_id: str, current_user:
              d.matched_recipient_id = ? OR EXISTS (
                SELECT 1 FROM rescues r JOIN rescue_splits s ON s.rescue_id = r.id
                WHERE r.donation_id = d.id AND s.recipient_id = ?
+             ) OR (
+               d.status = 'MATCHED'
+               AND EXISTS (SELECT 1 FROM users u WHERE u.id = ? AND u.role = 'recipient' AND u.capacity >= d.quantity)
+               AND NOT EXISTS (SELECT 1 FROM donation_events e WHERE e.donation_id = d.id AND e.event_type = 'RECIPIENT_ACCEPTED')
              ))""",
-        (donation_id, current_user["id"], current_user["id"]),
+        (donation_id, current_user["id"], current_user["id"], current_user["id"]),
     ).fetchone() is not None
 
 
@@ -372,7 +379,10 @@ def list_donations(
                         d.pickup_deadline, d.latitude, d.longitude,
                         d.matched_recipient_id,
                         recipient.organization AS matched_recipient_name,
-                        d.confidence, d.notes
+                        d.confidence, d.notes,
+                        EXISTS (SELECT 1 FROM donation_events e
+                                WHERE e.donation_id = d.id AND e.event_type = 'RECIPIENT_ACCEPTED')
+                          AS recipient_accepted
                  FROM donations d JOIN users donor ON donor.id = d.donor_id
                  LEFT JOIN users recipient ON recipient.id = d.matched_recipient_id"""
         params: tuple[str, ...] = ()
@@ -383,8 +393,12 @@ def list_donations(
             sql += """ WHERE d.matched_recipient_id = ? OR EXISTS (
                 SELECT 1 FROM rescues r JOIN rescue_splits s ON s.rescue_id = r.id
                 WHERE r.donation_id = d.id AND s.recipient_id = ?
+            ) OR (
+                d.status = 'MATCHED'
+                AND EXISTS (SELECT 1 FROM users u WHERE u.id = ? AND u.role = 'recipient' AND u.capacity >= d.quantity)
+                AND NOT EXISTS (SELECT 1 FROM donation_events e WHERE e.donation_id = d.id AND e.event_type = 'RECIPIENT_ACCEPTED')
             )"""
-            params = (current_user["id"], current_user["id"])
+            params = (current_user["id"], current_user["id"], current_user["id"])
         elif donor_id is not None:
             _user(conn, donor_id, "donor")
             sql += " WHERE d.donor_id = ?"
@@ -638,10 +652,37 @@ def accept_donation(donation_id: str, payload: AcceptRequest, current_user: dict
                     "SELECT * FROM rescue_splits WHERE id = ?", (split["id"],)
                 ).fetchone())
             else:
-                if donation["status"] != "MATCHED" or donation["matched_recipient_id"] != recipient["id"]:
-                    raise HTTPException(status_code=409, detail="Recipient is not assigned to this matched donation.")
+                if donation["status"] != "MATCHED":
+                    raise HTTPException(status_code=409, detail="This donation is no longer open for acceptance.")
                 if _event_exists(conn, donation_id, "RECIPIENT_ACCEPTED", recipient["id"]):
                     raise HTTPException(status_code=409, detail="Recipient has already accepted this donation.")
+                if conn.execute(
+                    "SELECT 1 FROM donation_events WHERE donation_id = ? AND event_type = 'RECIPIENT_ACCEPTED'",
+                    (donation_id,),
+                ).fetchone():
+                    raise HTTPException(status_code=409, detail="Another recipient has already accepted this donation.")
+                if recipient["capacity"] is None or recipient["capacity"] < donation["quantity"]:
+                    raise HTTPException(status_code=409, detail="Your stated capacity is below this donation's quantity.")
+                if _parse_datetime(donation["pickup_deadline"]) <= datetime.now(timezone.utc):
+                    raise HTTPException(status_code=409, detail="The pickup deadline has passed.")
+
+                # The top-ranked recipient is a recommendation. Any eligible NGO
+                # may claim the offer; this conditional update makes the first
+                # recorded acceptance win when multiple NGOs accept concurrently.
+                if donation["matched_recipient_id"] != recipient["id"]:
+                    metadata["recommended_recipient_id"] = donation["matched_recipient_id"]
+                claimed = conn.execute(
+                    """UPDATE donations SET matched_recipient_id = ?
+                       WHERE id = ? AND status = 'MATCHED'
+                         AND NOT EXISTS (
+                           SELECT 1 FROM donation_events
+                           WHERE donation_id = ? AND event_type = 'RECIPIENT_ACCEPTED'
+                         )""",
+                    (recipient["id"], donation_id, donation_id),
+                )
+                if claimed.rowcount != 1:
+                    raise HTTPException(status_code=409, detail="Another recipient has already accepted this donation.")
+                donation = _donation_row(conn, donation_id)
 
             event = _event(
                 conn, donation_id, "RECIPIENT_ACCEPTED",
