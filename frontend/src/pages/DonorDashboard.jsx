@@ -726,7 +726,7 @@ export default function DonorDashboard() {
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: 'transparent' }}>
-      <Sidebar active="dashboard" onNewDonation={() => setShowModal(true)} />
+      <Sidebar currentUser={currentUser} active="dashboard" onNewDonation={() => setShowModal(true)} />
 
       {/* Main */}
       <main style={{ flex: 1, overflow: 'auto' }}>
