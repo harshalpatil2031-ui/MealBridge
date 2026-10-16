@@ -15,7 +15,8 @@ The current SQLite schema is the contract's storage basis. It has no dedicated r
 - There is no stored live availability field. For the first version, seeded recipients are treated as available for matching. The response labels availability as assumed/demo availability. Registration availability cannot be changed until schema support is added.
 - Deadline feasibility means only “the deadline is still in the future.” Travel-time estimation and food-safety certification are out of scope; the UI must not claim them.
 - Match ranking is deterministic and rule-based. It is not machine learning and must not be labeled “AI match score.”
-- The seeded profile's coordinates are the demo pickup/recipient locations. The API does not authenticate the caller; write requests carry an actor ID for demo attribution.
+- The API authenticates accounts with hashed passwords and revocable 12-hour bearer sessions. Server-side role and record ownership checks control protected routes; clients must not choose a role or submit actor IDs as authority.
+- New self-service accounts can be donors or recipients. Coordinator access is restricted to seeded coordinator accounts. Demo accounts have separate role-specific credentials documented in `README.md`.
 - `RESCUED` means recipient handover confirmations cover the full donation quantity. The prototype does not collect an independent donor confirmation, so do not claim dual-party confirmation.
 
 ## Shared response conventions
@@ -131,6 +132,16 @@ Allowed split statuses: `PROPOSED`, `ACCEPTED`, `HANDED_OVER`, `DECLINED`. Exist
 
 ## Endpoints
 
+### Authentication
+
+`POST /auth/register` accepts `{name, organization, email, password, role, location, capacity?}`. Public registration only permits `donor` or `recipient`; recipient accounts must include a positive `capacity`. On success it returns an access token and the new public user profile.
+
+`POST /auth/login` accepts `{email, password}` and returns `{access_token, token_type, expires_at, user}`. The role is read from the account record; there is no client-selected role.
+
+Send `Authorization: Bearer <access_token>` on protected routes. `GET /auth/me` returns the current user's public profile. `POST /auth/logout` revokes the current session. Missing or expired sessions return **401**; role or ownership violations return **403** (or **404** for a record the user cannot view).
+
+`GET /recipients` is limited to donors and coordinators. `GET /donations` returns all records to coordinators, the caller's own records to donors, and only assigned/rescue-split records to recipients. An optional `donor_id` filter is coordinator-only, or may match the authenticated donor's own ID.
+
 ### `GET /health`
 
 No request body.
@@ -168,7 +179,7 @@ No request body. Return only users with role `recipient`, ordered by organizatio
 
 ### `GET /donations`
 
-Optional query parameter: `donor_id`. Without it, return all donations for the coordinator demo view. Order newest first. Join organization names. Return `items` even when empty.
+Role-scoped to the authenticated account as described above. Order newest first. Join organization names. Return `items` even when empty.
 
 **200**
 
@@ -180,7 +191,7 @@ Unknown `donor_id` → **404** `{"detail":"Donor not found."}`.
 
 ### `GET /donations/{donation_id}`
 
-Return one donation with ordered events, current rescue (if any), and splits.
+Return one donation with ordered events, current rescue (if any), and splits, only when the authenticated user owns or is assigned to the record (or is a coordinator).
 
 **200**
 
@@ -204,13 +215,12 @@ No rescue → `rescue: null`, `splits: []`. Unknown donation → **404**.
 
 ### `POST /donations`
 
-Create a donation and its `CREATED` event in one transaction. The API chooses the ID, creation time and initial status; client must not send them.
+Create a donation and its `CREATED` event in one transaction. Donors only may create donations. The donor ID is taken from the authenticated session. The API chooses the ID, creation time and initial status; client must not send them.
 
 **Request**
 
 ```json
 {
-  "donor_id": "U-D01",
   "food_name": "Cooked Meals",
   "quantity": 80,
   "unit": "meals",
@@ -232,7 +242,7 @@ Create a donation and its `CREATED` event in one transaction. The API chooses th
 }
 ```
 
-Validation: donor exists and role is donor; food name non-empty; quantity positive integer; unit non-empty; deadline valid and in future; coordinates in legal latitude/longitude range. Invalid data → **400**. Unknown/non-donor ID → **404** or **400** with clear detail (choose and keep consistent).
+Validation: authenticated role is donor; food name non-empty; quantity positive integer; unit non-empty; deadline valid and in future; coordinates in legal latitude/longitude range. Invalid data → **400**.
 
 ### `POST /donations/{donation_id}/match`
 
@@ -244,7 +254,7 @@ Calculate eligible candidates from stored recipient coordinates/capacity and don
 {"actor_id":"U-C01"}
 ```
 
-`actor_id` may be omitted; default to `U-C01` for this unauthenticated demo.
+Donor sessions may match only their own donations; coordinators may match any pending donation. Actor attribution comes from the session; `actor_id` in the request, if supplied for backwards compatibility, is ignored.
 
 **200 with selected match**
 
@@ -283,7 +293,7 @@ Record a cancellation/failure of the primary match and create a recovery plan. D
 }
 ```
 
-`actor_id` may be omitted and default to `U-C01`. Recipient must match current primary assignment. `reason` is required.
+Recipient sessions may cancel only their own current primary assignment. Coordinator sessions may initiate the same recovery flow. Actor attribution comes from the session. `reason` is required.
 
 **200 with feasible recovery**
 
@@ -346,7 +356,7 @@ Record an eligible recipient's acceptance. For ordinary `MATCHED` donations, rec
 {"recipient_id":"U-R01","split_id":"RS-D-20261016-A1B2C3-01","actor_id":"U-R01"}
 ```
 
-`actor_id` defaults to `recipient_id` if omitted. **200** returns `{"donation":{/*summary*/},"split":{/*split or null*/},"event":{/*event*/}}`. Record `RECIPIENT_ACCEPTED`; for split, set split status `ACCEPTED` and `accepted_at`. Donation status remains `MATCHED` for ordinary acceptance or `RESCUE_TRIGGERED` for rescue acceptance; neither implies pickup/handover. Invalid participant/status → **409**.
+The server derives actor attribution from the authenticated recipient session and ignores `actor_id` if supplied for backwards compatibility. **200** returns `{"donation":{/*summary*/},"split":{/*split or null*/},"event":{/*event*/}}`. Record `RECIPIENT_ACCEPTED`; for split, set split status `ACCEPTED` and `accepted_at`. Donation status remains `MATCHED` for ordinary acceptance or `RESCUE_TRIGGERED` for rescue acceptance; neither implies pickup/handover. Invalid participant/status → **409**.
 
 ### `POST /donations/{donation_id}/handover`
 
@@ -373,7 +383,7 @@ Record a recipient-confirmed physical handover. This demo endpoint records recip
 }
 ```
 
-`actor_id` defaults to `recipient_id`. Handover requires the ordinary match/split to be accepted first (if workflow requires acceptance); it must belong to this donation and recipient. Reject duplicate handover, non-positive quantity or confirmed amount above assigned amount with **409/400**. For rescue, only mark a split `HANDED_OVER` when the assigned quantity is confirmed. The schema has one `handover_at` per split, so partial handover is unsupported: require `confirmed_quantity == assigned quantity` in this version.
+The server derives actor attribution from the authenticated recipient session and ignores `actor_id` if supplied for backwards compatibility. Handover requires the ordinary match/split to be accepted first; it must belong to this donation and recipient. Reject duplicate handover, non-positive quantity or confirmed amount above assigned amount with **409/400**. For rescue, only mark a split `HANDED_OVER` when the assigned quantity is confirmed. The schema has one `handover_at` per split, so partial handover is unsupported: require `confirmed_quantity == assigned quantity` in this version.
 
 **200**
 

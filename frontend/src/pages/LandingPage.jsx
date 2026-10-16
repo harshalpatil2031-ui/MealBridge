@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { BadgeCheck, BarChart3, Building2, Check, CircleAlert, Clock3, HeartHandshake, MessageCircle, PackageCheck, Recycle, Sparkles, Target, TrendingUp, Users, Utensils, Zap } from 'lucide-react'
 
 /* ─── Navbar ─────────────────────────────────────────────────── */
 function Navbar() {
@@ -20,7 +20,7 @@ function Navbar() {
             background: 'linear-gradient(135deg,#f97316,#ea580c)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: '1.2rem', boxShadow: '0 4px 15px rgba(249,115,22,0.4)'
-          }}>🍱</div>
+          }}><Utensils size={19} strokeWidth={1.8} color="#fff" /></div>
           <span style={{ fontFamily: 'Space Grotesk,sans-serif', fontWeight: 700, fontSize: '1.2rem' }}>
             Meal<span className="gradient-text-orange">Bridge</span>
           </span>
@@ -66,7 +66,7 @@ function Counter({ end, suffix = '', prefix = '' }) {
 }
 
 /* ─── Step Card ──────────────────────────────────────────────── */
-function StepCard({ number, icon, title, desc, color, delay }) {
+function StepCard({ number, icon: Icon, title, desc, color, delay }) {
   return (
     <div className="glass-card animate-fadeInUp" style={{
       padding: '32px 28px', animationDelay: delay,
@@ -83,8 +83,8 @@ function StepCard({ number, icon, title, desc, color, delay }) {
         width: 52, height: 52, borderRadius: 14,
         background: `${color}18`, border: `1.5px solid ${color}40`,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: '1.5rem', marginBottom: 20
-      }}>{icon}</div>
+        marginBottom: 20
+      }}><Icon size={23} strokeWidth={1.8} color={color} /></div>
 
       <div style={{
         display: 'inline-flex', alignItems: 'center', gap: 6,
@@ -101,7 +101,7 @@ function StepCard({ number, icon, title, desc, color, delay }) {
 }
 
 /* ─── Feature Row ────────────────────────────────────────────── */
-function FeatureRow({ icon, title, desc }) {
+function FeatureRow({ icon: Icon, title, desc }) {
   return (
     <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', padding: '20px 0',
       borderBottom: '1px solid var(--border)' }}>
@@ -109,7 +109,7 @@ function FeatureRow({ icon, title, desc }) {
         width: 42, height: 42, borderRadius: 11, flexShrink: 0,
         background: 'var(--orange-glow)', border: '1px solid rgba(249,115,22,0.2)',
         display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem'
-      }}>{icon}</div>
+      }}><Icon size={19} strokeWidth={1.8} color="var(--orange-light)" /></div>
       <div>
         <div style={{ fontWeight: 600, marginBottom: 4, fontSize: '0.95rem' }}>{title}</div>
         <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>{desc}</div>
@@ -119,7 +119,7 @@ function FeatureRow({ icon, title, desc }) {
 }
 
 /* ─── Stat Card ──────────────────────────────────────────────── */
-function StatCard({ value, label, icon, color }) {
+function StatCard({ value, label, icon: Icon, color }) {
   return (
     <div style={{
       background: 'var(--bg-card)', border: '1px solid var(--border)',
@@ -129,7 +129,7 @@ function StatCard({ value, label, icon, color }) {
       onMouseEnter={e => { e.currentTarget.style.borderColor = color; e.currentTarget.style.transform = 'translateY(-4px)' }}
       onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.transform = 'translateY(0)' }}
     >
-      <div style={{ fontSize: '2rem', marginBottom: 8 }}>{icon}</div>
+      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}><Icon size={27} strokeWidth={1.7} color={color} /></div>
       <div style={{ fontSize: '2.2rem', fontWeight: 800, color, fontFamily: 'Space Grotesk,sans-serif', lineHeight: 1 }}>
         <Counter end={parseInt(value)} suffix={value.replace(/[0-9]/g, '')} />
       </div>
@@ -139,17 +139,15 @@ function StatCard({ value, label, icon, color }) {
 }
 
 /* ─── Team Member Card ───────────────────────────────────────── */
-function TeamCard({ name, role, emoji, color }) {
+function TeamCard({ name, icon: Icon, color }) {
   return (
     <div className="glass-card" style={{ padding: '28px 24px', textAlign: 'center' }}>
       <div style={{
         width: 64, height: 64, borderRadius: '50%', margin: '0 auto 16px',
         background: `${color}18`, border: `2px solid ${color}40`,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: '1.8rem'
-      }}>{emoji}</div>
-      <div style={{ fontWeight: 700, fontSize: '1rem', marginBottom: 4 }}>{name}</div>
-      <div style={{ fontSize: '0.82rem', color: color, fontWeight: 600 }}>{role}</div>
+      }}><Icon size={25} strokeWidth={1.6} color={color} /></div>
+      <div style={{ fontWeight: 700, fontSize: '1rem' }}>{name}</div>
     </div>
   )
 }
@@ -183,7 +181,7 @@ export default function LandingPage() {
           {/* Hackathon badge */}
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 24 }}>
             <div className="badge-orange animate-fadeInUp">
-              <span>⚡</span> PRISM 26 Socithon · Team NovaNexus
+              <Zap size={15} strokeWidth={2} /> PRISM 26 Socithon · Team NovaNexus
             </div>
           </div>
 
@@ -209,13 +207,13 @@ export default function LandingPage() {
             display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap', marginBottom: 60, opacity: 0
           }}>
             <a href="/register?role=donor" className="btn-primary" id="cta-donor">
-              🍽️ I'm a Donor
+              <Utensils size={17} /> I'm a Donor
             </a>
             <a href="/register?role=recipient" className="btn-green" id="cta-ngo">
-              🏠 I'm an NGO
+              <Building2 size={17} /> I'm an NGO
             </a>
             <a href="/register?role=coordinator" className="btn-secondary" id="cta-coordinator">
-              🧑‍💼 Coordinator
+              <Users size={17} /> Coordinator
             </a>
           </div>
 
@@ -242,10 +240,10 @@ export default function LandingPage() {
       <section className="section" style={{ paddingTop: 0 }} id="stats">
         <div className="container">
           <div className="grid-4">
-            <StatCard value="8400+" label="Meals Rescued" icon="🍱" color="#f97316" />
-            <StatCard value="94%" label="Rescue Success Rate" icon="🎯" color="#10b981" />
-            <StatCard value="120+" label="Active Donor Partners" icon="🏪" color="#3b82f6" />
-            <StatCard value="58+" label="NGO Partners" icon="🤝" color="#a78bfa" />
+            <StatCard value="8400+" label="Meals Rescued" icon={Utensils} color="#f97316" />
+            <StatCard value="94%" label="Rescue Success Rate" icon={Target} color="#10b981" />
+            <StatCard value="120+" label="Active Donor Partners" icon={Building2} color="#3b82f6" />
+            <StatCard value="58+" label="NGO Partners" icon={HeartHandshake} color="#a78bfa" />
           </div>
         </div>
       </section>
@@ -268,13 +266,13 @@ export default function LandingPage() {
           </p>
 
           <div className="grid-4">
-            <StepCard number={1} icon="🔮" title="PREDICT" color="#f97316" delay="0s"
+            <StepCard number={1} icon={TrendingUp} title="PREDICT" color="#f97316" delay="0s"
               desc="AI estimates potential surplus using historical meal patterns, attendance data, and day-of-week trends before food is even prepared." />
-            <StepCard number={2} icon="🎯" title="MATCH" color="#3b82f6" delay="0.1s"
+            <StepCard number={2} icon={Target} title="MATCH" color="#3b82f6" delay="0.1s"
               desc="Confirms available quantity and ranks eligible recipients by capacity, distance, availability, and safe collection deadline." />
-            <StepCard number={3} icon="⚡" title="RECOVER" color="#ef4444" delay="0.2s"
+            <StepCard number={3} icon={Recycle} title="RECOVER" color="#ef4444" delay="0.2s"
               desc="If a pickup fails, the Rescue Recovery Engine finds alternative recipients or splits the donation across multiple NGOs — automatically." />
-            <StepCard number={4} icon="📊" title="TRACK & LEARN" color="#10b981" delay="0.3s"
+            <StepCard number={4} icon={BarChart3} title="TRACK & LEARN" color="#10b981" delay="0.3s"
               desc="Confirms handovers, logs outcomes, and feeds data back into the prediction model to improve future matches and rescues." />
           </div>
         </div>
@@ -289,7 +287,7 @@ export default function LandingPage() {
 
             {/* Left: text */}
             <div>
-              <div className="badge-orange" style={{ marginBottom: 20 }}>🔑 Core Innovation</div>
+              <div className="badge-orange" style={{ marginBottom: 20 }}><Sparkles size={15} /> Core Innovation</div>
               <h2 style={{ fontSize: 'clamp(1.8rem, 3.5vw, 2.6rem)', fontWeight: 800, marginBottom: 20 }}>
                 The <span className="gradient-text">Rescue Recovery</span> Engine
               </h2>
@@ -298,13 +296,13 @@ export default function LandingPage() {
                 that recipient cancels — automatically, before the food deadline.
               </p>
 
-              <FeatureRow icon="🔄" title="Auto Fallback"
+              <FeatureRow icon={Recycle} title="Auto Fallback"
                 desc="When a recipient declines or goes silent, the engine immediately searches for the next best match." />
-              <FeatureRow icon="✂️" title="Split Donations"
+              <FeatureRow icon={PackageCheck} title="Split Donations"
                 desc="If no single recipient has capacity, the batch is split across 2–3 NGOs — each getting their portion." />
-              <FeatureRow icon="⏱️" title="Real-Time Countdown"
+              <FeatureRow icon={Clock3} title="Real-Time Countdown"
                 desc="Every decision is time-aware. The engine works against the food safety deadline, not just convenience." />
-              <FeatureRow icon="✅" title="Verified Handovers"
+              <FeatureRow icon={BadgeCheck} title="Verified Handovers"
                 desc="A donation is only counted as rescued after both donor and recipient confirm the physical handover." />
             </div>
 
@@ -320,7 +318,7 @@ export default function LandingPage() {
                   borderRadius: 'var(--radius-lg)', padding: '24px', marginBottom: 16
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-                    <span style={{ fontSize: '1.2rem' }}>⚠️</span>
+                    <CircleAlert size={20} color="#f87171" />
                     <div>
                       <div style={{ fontWeight: 700, color: '#f87171', fontSize: '0.9rem' }}>Pickup Failed — Rescue Triggered</div>
                       <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>City Shelter NGO declined · 47 mins to deadline</div>
@@ -350,7 +348,7 @@ export default function LandingPage() {
                       display: 'flex', alignItems: 'center', gap: 12
                     }}>
                       <div style={{ width: 36, height: 36, borderRadius: 10, background: `${r.color}20`,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem' }}>🏠</div>
+                        display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Building2 size={17} color={r.color} /></div>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontWeight: 600, fontSize: '0.88rem' }}>{r.org}</div>
                         <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{r.meals} · {r.dist}</div>
@@ -367,7 +365,7 @@ export default function LandingPage() {
                   borderRadius: 'var(--radius-md)', padding: '14px',
                   color: '#34d399', fontWeight: 700, fontSize: '0.9rem'
                 }}>
-                  🟢 80 meals rescued · Split donation confirmed
+                  <Check size={17} style={{ verticalAlign: 'middle', marginRight: 5 }} />80 meals rescued · Split donation confirmed
                 </div>
               </div>
             </div>
@@ -381,7 +379,7 @@ export default function LandingPage() {
       <section className="section" id="features">
         <div className="container">
           <div style={{ textAlign: 'center', marginBottom: 56 }}>
-            <div className="badge-green" style={{ marginBottom: 16, display: 'inline-flex' }}>🤖 AI-Powered</div>
+            <div className="badge-green" style={{ marginBottom: 16, display: 'inline-flex' }}><Sparkles size={15} /> AI-Powered</div>
             <h2 style={{ fontSize: 'clamp(1.8rem, 4vw, 2.6rem)', fontWeight: 800, marginBottom: 16 }}>
               Intelligence at <span className="gradient-text">every step</span>
             </h2>
@@ -393,22 +391,22 @@ export default function LandingPage() {
           <div className="grid-2">
             {[
               {
-                icon: '🔮', title: 'AI Surplus Prediction',
+                icon: TrendingUp, title: 'Surplus Prediction',
                 desc: 'Estimates leftover food using historical meal patterns, attendance, day-of-week trends, and special event flags — before the food is even cooked.',
                 tag: 'scikit-learn · Random Forest', color: '#f97316'
               },
               {
-                icon: '🎯', title: 'Intelligent Matching',
+                icon: Target, title: 'Intelligent Matching',
                 desc: 'Ranks recipients using a weighted scoring algorithm across 5 factors: capacity, distance, availability, deadline fit, and past pickup success rate.',
                 tag: 'Weighted Scoring · Haversine', color: '#3b82f6'
               },
               {
-                icon: '⚡', title: 'Rescue Recovery Engine',
+                icon: Recycle, title: 'Rescue Recovery Engine',
                 desc: 'When the original plan fails, automatically finds alternatives or splits donations across multiple recipients — all before the food safety deadline.',
                 tag: 'Custom Optimization Logic', color: '#ef4444'
               },
               {
-                icon: '💬', title: 'Conversational AI Assistant',
+                icon: MessageCircle, title: 'Conversational AI Assistant',
                 desc: 'Donors and coordinators can ask natural language questions about donation status, recovery options, and next steps via the integrated chat.',
                 tag: 'IBM watsonx.ai', color: '#10b981'
               }
@@ -418,8 +416,8 @@ export default function LandingPage() {
                   <div style={{
                     width: 52, height: 52, borderRadius: 14, flexShrink: 0,
                     background: `${f.color}15`, border: `1.5px solid ${f.color}35`,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.4rem'
-                  }}>{f.icon}</div>
+                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                  }}><f.icon size={23} strokeWidth={1.8} color={f.color} /></div>
                   <div>
                     <h3 style={{ fontSize: '1.05rem', fontWeight: 700, marginBottom: 10 }}>{f.title}</h3>
                     <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: 1.65, marginBottom: 14 }}>{f.desc}</p>
@@ -443,7 +441,7 @@ export default function LandingPage() {
         <div className="container">
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 64, alignItems: 'center' }}>
             <div>
-              <div className="badge-orange" style={{ marginBottom: 20 }}>📊 The Problem</div>
+              <div className="badge-orange" style={{ marginBottom: 20 }}><BarChart3 size={15} /> The Problem</div>
               <h2 style={{ fontSize: 'clamp(1.8rem, 3.5vw, 2.5rem)', fontWeight: 800, marginBottom: 20 }}>
                 Food waste isn't a<br /><span className="gradient-text-orange">supply problem.</span><br />It's a coordination problem.
               </h2>
@@ -454,10 +452,10 @@ export default function LandingPage() {
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               {[
-                { icon: '❓', text: 'Nobody knows how much food will be left over', color: '#f97316' },
-                { icon: '📦', text: "Recipients can't always take the full quantity", color: '#ef4444' },
-                { icon: '🚫', text: 'Pickups get cancelled at the last minute', color: '#f97316' },
-                { icon: '📞', text: 'Everything runs on manual calls — no backup plan', color: '#ef4444' },
+                { icon: CircleAlert, text: 'Nobody knows how much food will be left over', color: '#f97316' },
+                { icon: PackageCheck, text: "Recipients can't always take the full quantity", color: '#ef4444' },
+                { icon: CircleAlert, text: 'Pickups get cancelled at the last minute', color: '#f97316' },
+                { icon: MessageCircle, text: 'Everything runs on manual calls — no backup plan', color: '#ef4444' },
               ].map((p, i) => (
                 <div key={i} style={{
                   display: 'flex', gap: 14, alignItems: 'center',
@@ -465,7 +463,7 @@ export default function LandingPage() {
                   borderLeft: `3px solid ${p.color}`,
                   borderRadius: 'var(--radius-sm)', padding: '16px 18px'
                 }}>
-                  <span style={{ fontSize: '1.2rem' }}>{p.icon}</span>
+                  <p.icon size={19} strokeWidth={1.8} color={p.color} />
                   <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>{p.text}</span>
                 </div>
               ))}
@@ -480,16 +478,16 @@ export default function LandingPage() {
       <section className="section" id="team">
         <div className="container">
           <div style={{ textAlign: 'center', marginBottom: 52 }}>
-            <div className="badge-green" style={{ marginBottom: 16, display: 'inline-flex' }}>👥 Team NovaNexus</div>
+            <div className="badge-green" style={{ marginBottom: 16, display: 'inline-flex' }}><Users size={15} /> Team NovaNexus</div>
             <h2 style={{ fontSize: 'clamp(1.8rem, 4vw, 2.6rem)', fontWeight: 800 }}>
-              Built by <span className="gradient-text">NovaNexus</span>
+              Meet the <span className="gradient-text">Team</span>
             </h2>
           </div>
           <div className="grid-4">
-            <TeamCard name="Harshal Patil" role="Team Lead · Full Stack" emoji="👨‍💻" color="#f97316" />
-            <TeamCard name="Team Member" role="Backend · AI/ML" emoji="🤖" color="#3b82f6" />
-            <TeamCard name="Team Member" role="Frontend · UI/UX" emoji="🎨" color="#10b981" />
-            <TeamCard name="Team Member" role="ML · Data Science" emoji="📊" color="#a78bfa" />
+            <TeamCard name="Harshal Patil" icon={Users} color="#f97316" />
+            <TeamCard name="Pratyusha Padwal" icon={Users} color="#3b82f6" />
+            <TeamCard name="Harshita Panjwani" icon={Users} color="#10b981" />
+            <TeamCard name="Nishad Kulkarni" icon={Users} color="#a78bfa" />
           </div>
         </div>
       </section>
@@ -501,7 +499,7 @@ export default function LandingPage() {
         <div className="orb orb-orange" style={{ width: 400, height: 400, top: '50%', left: '50%',
           transform: 'translate(-50%,-50%)', filter: 'blur(80px)' }} />
         <div className="container" style={{ position: 'relative', zIndex: 1 }}>
-          <div className="badge-orange" style={{ marginBottom: 24, display: 'inline-flex' }}>🏆 PRISM 26 Socithon</div>
+          <div className="badge-orange" style={{ marginBottom: 24, display: 'inline-flex' }}><Sparkles size={15} /> PRISM 26 Socithon</div>
           <h2 style={{ fontSize: 'clamp(2rem, 5vw, 3.5rem)', fontWeight: 900, marginBottom: 20 }}>
             Ready to <span className="gradient-text">rescue food?</span>
           </h2>
@@ -509,8 +507,8 @@ export default function LandingPage() {
             Join MealBridge and turn surplus into impact. Every meal rescued is a life touched.
           </p>
           <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <a href="/register?role=donor" className="btn-primary">🍽️ Register as Donor</a>
-            <a href="/register?role=recipient" className="btn-green">🏠 Register as NGO</a>
+            <a href="/register?role=donor" className="btn-primary"><Utensils size={17} /> Register as Donor</a>
+            <a href="/register?role=recipient" className="btn-green"><Building2 size={17} /> Register as NGO</a>
           </div>
         </div>
       </section>
@@ -519,13 +517,13 @@ export default function LandingPage() {
       <footer style={{ background: 'var(--bg-secondary)', borderTop: '1px solid var(--border)', padding: '32px 0' }}>
         <div className="container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ fontSize: '1.2rem' }}>🍱</span>
+            <Utensils size={18} color="var(--orange-light)" />
             <span style={{ fontFamily: 'Space Grotesk,sans-serif', fontWeight: 700 }}>
               Meal<span className="gradient-text-orange">Bridge</span>
             </span>
           </div>
           <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-            Built with ❤️ by Team NovaNexus · PRISM 26 Socithon · {new Date().getFullYear()}
+            Team NovaNexus · PRISM 26 Socithon · {new Date().getFullYear()}
           </div>
           <div style={{ display: 'flex', gap: 20 }}>
             {['GitHub', 'Docs', 'Contact'].map(l => (

@@ -15,6 +15,8 @@ from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 
+from auth import DEMO_PASSWORDS, hash_password
+
 
 def database_path() -> Path:
     url = os.getenv("DATABASE_URL", "sqlite:///./mealbridge.db")
@@ -30,17 +32,21 @@ def iso(value: datetime | date) -> str:
 
 
 def build_seed(now: datetime) -> dict[str, list[dict]]:
+    demo_password_hash = hash_password(DEMO_PASSWORDS["donor"])
     users = [
-        {"id": "U-D01", "name": "Harshal Patil", "email": "harshal@sunrise.in", "role": "donor", "organization": "Sunrise Hostel", "organization_type": "Hostel", "location": "Kothrud, Pune", "latitude": 18.5074, "longitude": 73.8077, "capacity": None, "password_hash": "demo-not-for-production"},
-        {"id": "U-D02", "name": "Meera Shah", "email": "meera@greenleaf.in", "role": "donor", "organization": "Greenleaf Café", "organization_type": "Restaurant", "location": "Koregaon Park, Pune", "latitude": 18.5362, "longitude": 73.8943, "capacity": None, "password_hash": "demo-not-for-production"},
-        {"id": "U-D03", "name": "Rajesh Kumar", "email": "rajesh@metrokitchen.in", "role": "donor", "organization": "Metro Canteen", "organization_type": "College canteen", "location": "Shivajinagar, Pune", "latitude": 18.5308, "longitude": 73.8474, "capacity": None, "password_hash": "demo-not-for-production"},
-        {"id": "U-R01", "name": "Anita Desai", "email": "anita@ashatrust.org", "role": "recipient", "organization": "Asha Trust", "organization_type": "NGO", "location": "Karve Nagar, Pune", "latitude": 18.4912, "longitude": 73.8245, "capacity": 100, "password_hash": "demo-not-for-production"},
-        {"id": "U-R02", "name": "Priya Nair", "email": "priya@hopekitchen.org", "role": "recipient", "organization": "Hope Kitchen", "organization_type": "Community Kitchen", "location": "Shivajinagar, Pune", "latitude": 18.5308, "longitude": 73.8474, "capacity": 80, "password_hash": "demo-not-for-production"},
-        {"id": "U-R03", "name": "Suresh More", "email": "suresh@greenhope.org", "role": "recipient", "organization": "Green Hope NGO", "organization_type": "NGO", "location": "Bavdhan, Pune", "latitude": 18.5121, "longitude": 73.7857, "capacity": 60, "password_hash": "demo-not-for-production"},
-        {"id": "U-R04", "name": "Fatima Sheikh", "email": "fatima@cityshelter.org", "role": "recipient", "organization": "City Shelter NGO", "organization_type": "Shelter", "location": "Hadapsar, Pune", "latitude": 18.5018, "longitude": 73.9260, "capacity": 120, "password_hash": "demo-not-for-production"},
-        {"id": "U-R05", "name": "Vikram Joshi", "email": "vikram@sunrisehome.org", "role": "recipient", "organization": "Sunrise Home", "organization_type": "Orphanage", "location": "Baner, Pune", "latitude": 18.5590, "longitude": 73.7868, "capacity": 50, "password_hash": "demo-not-for-production"},
-        {"id": "U-C01", "name": "Coordinator Admin", "email": "admin@mealbridge.in", "role": "coordinator", "organization": "MealBridge Platform", "organization_type": "Platform", "location": "Pune", "latitude": 18.5204, "longitude": 73.8567, "capacity": None, "password_hash": "demo-not-for-production"},
+        {"id": "U-D01", "name": "Harshal Patil", "email": "harshal@sunrise.in", "role": "donor", "organization": "Sunrise Hostel", "organization_type": "Hostel", "location": "Kothrud, Pune", "latitude": 18.5074, "longitude": 73.8077, "capacity": None, "password_hash": demo_password_hash},
+        {"id": "U-D02", "name": "Meera Shah", "email": "meera@greenleaf.in", "role": "donor", "organization": "Greenleaf Café", "organization_type": "Restaurant", "location": "Koregaon Park, Pune", "latitude": 18.5362, "longitude": 73.8943, "capacity": None, "password_hash": demo_password_hash},
+        {"id": "U-D03", "name": "Rajesh Kumar", "email": "rajesh@metrokitchen.in", "role": "donor", "organization": "Metro Canteen", "organization_type": "College canteen", "location": "Shivajinagar, Pune", "latitude": 18.5308, "longitude": 73.8474, "capacity": None, "password_hash": demo_password_hash},
+        {"id": "U-R01", "name": "Anita Desai", "email": "anita@ashatrust.org", "role": "recipient", "organization": "Asha Trust", "organization_type": "NGO", "location": "Karve Nagar, Pune", "latitude": 18.4912, "longitude": 73.8245, "capacity": 100, "password_hash": demo_password_hash},
+        {"id": "U-R02", "name": "Priya Nair", "email": "priya@hopekitchen.org", "role": "recipient", "organization": "Hope Kitchen", "organization_type": "Community Kitchen", "location": "Shivajinagar, Pune", "latitude": 18.5308, "longitude": 73.8474, "capacity": 80, "password_hash": demo_password_hash},
+        {"id": "U-R03", "name": "Suresh More", "email": "suresh@greenhope.org", "role": "recipient", "organization": "Green Hope NGO", "organization_type": "NGO", "location": "Bavdhan, Pune", "latitude": 18.5121, "longitude": 73.7857, "capacity": 60, "password_hash": demo_password_hash},
+        {"id": "U-R04", "name": "Fatima Sheikh", "email": "fatima@cityshelter.org", "role": "recipient", "organization": "City Shelter NGO", "organization_type": "Shelter", "location": "Hadapsar, Pune", "latitude": 18.5018, "longitude": 73.9260, "capacity": 120, "password_hash": demo_password_hash},
+        {"id": "U-R05", "name": "Vikram Joshi", "email": "vikram@sunrisehome.org", "role": "recipient", "organization": "Sunrise Home", "organization_type": "Orphanage", "location": "Baner, Pune", "latitude": 18.5590, "longitude": 73.7868, "capacity": 50, "password_hash": demo_password_hash},
+        {"id": "U-C01", "name": "Coordinator Admin", "email": "admin@mealbridge.in", "role": "coordinator", "organization": "MealBridge Platform", "organization_type": "Platform", "location": "Pune", "latitude": 18.5204, "longitude": 73.8567, "capacity": None, "password_hash": demo_password_hash},
     ]
+    for user in users:
+        if user["role"] != "donor":
+            user["password_hash"] = hash_password(DEMO_PASSWORDS[user["role"]])
         
     today = now.date()
     deadline_7pm = datetime.combine(today, time(19, 0), tzinfo=timezone.utc)
@@ -98,6 +104,10 @@ CREATE TABLE IF NOT EXISTS users (
  latitude REAL NOT NULL, longitude REAL NOT NULL, capacity INTEGER,
  password_hash TEXT NOT NULL, created_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS auth_sessions (
+ token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+ expires_at TEXT NOT NULL, created_at TEXT NOT NULL
+);
 CREATE TABLE IF NOT EXISTS donations (
  id TEXT PRIMARY KEY, donor_id TEXT NOT NULL REFERENCES users(id), food_name TEXT NOT NULL,
  quantity INTEGER NOT NULL CHECK(quantity > 0), unit TEXT NOT NULL,
@@ -149,7 +159,7 @@ def seed(conn: sqlite3.Connection, now: datetime) -> dict[str, int]:
     conn.execute("BEGIN")
     try:
         # Delete in child-to-parent order so SQLite foreign keys remain enabled.
-        for table in ("rescue_splits", "rescues", "donation_events", "donations", "surplus_history", "users"):
+        for table in ("auth_sessions", "rescue_splits", "rescues", "donation_events", "donations", "surplus_history", "users"):
             conn.execute(f"DELETE FROM {table}")
         for table, rows in data.items():
             columns = TABLE_COLUMNS[table].split(",")
@@ -178,7 +188,7 @@ def main() -> None:
         counts = seed(conn, datetime.now(timezone.utc))
     print(f"Seeded MealBridge demo database: {path}")
     print("  " + " | ".join(f"{table}: {count}" for table, count in counts.items()))
-    print("Demo login accounts use the emails in users; password hashes are placeholders, not production credentials.")
+    print("Seeded demo accounts use the role-specific demo passwords documented in README.md.")
 
 
 if __name__ == "__main__":

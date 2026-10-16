@@ -2,9 +2,8 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import ChatWidget from '../components/ChatWidget'
 import { getDonations, createDonation, matchDonation } from '../api/donations.js'
-
-/* ─── Current User ───────────────────────────────────────────── */
-const currentUser = { id: 'U-D01', name: 'Harshal Patil', org: 'Sunrise Hostel', role: 'donor' }
+import { getCurrentUser } from '../api/session.js'
+import { logout as endSession } from '../api/auth.js'
 
 const EMOJI_MAP = {
   'Cooked Meals': '🍛',
@@ -65,7 +64,7 @@ function StatusBadge({ status }) {
 }
 
 /* ─── New Donation Modal ─────────────────────────────────────── */
-function NewDonationModal({ onClose, onSuccess }) {
+function NewDonationModal({ currentUser, onClose, onSuccess }) {
   const [form, setForm] = useState({
     food_name: '',
     quantity: '',
@@ -129,13 +128,12 @@ function NewDonationModal({ onClose, onSuccess }) {
     let createdDonation = null
     try {
       const createRes = await createDonation({
-        donor_id: currentUser.id,
         food_name: form.food_name,
         quantity: qty,
         unit: form.unit || 'portions',
         pickup_deadline: deadlineDate.toISOString(),
-        latitude: 18.5074,
-        longitude: 73.8077,
+        latitude: currentUser.latitude,
+        longitude: currentUser.longitude,
         notes: form.notes.trim() ? form.notes.trim() : null
       })
       createdDonation = createRes.donation
@@ -470,7 +468,7 @@ function ActiveDonationCard({ d, onHandover }) {
 }
 
 /* ─── Sidebar ────────────────────────────────────────────────── */
-function Sidebar({ active }) {
+function Sidebar({ active, onNewDonation }) {
   const nav = [
     { id: 'dashboard', icon: '📊', label: 'Dashboard',    href: '/donor' },
     { id: 'donate',    icon: '🍱', label: 'New Donation',  href: '#new' },
@@ -509,7 +507,7 @@ function Sidebar({ active }) {
           <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'rgba(249,115,22,0.2)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem' }}>🍽️</div>
           <div>
-            <div style={{ fontSize: '0.82rem', fontWeight: 700 }}>{currentUser.org}</div>
+            <div style={{ fontSize: '0.82rem', fontWeight: 700 }}>{currentUser.organization}</div>
             <div style={{ fontSize: '0.72rem', color: 'var(--orange-light)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Donor</div>
           </div>
         </div>
@@ -517,7 +515,18 @@ function Sidebar({ active }) {
 
       {/* Nav */}
       <nav style={{ flex: 1, padding: '16px 12px' }}>
-        {nav.map(n => (
+        {nav.map(n => n.id === 'donate' ? (
+          <button key={n.id} type="button" onClick={onNewDonation} style={{
+            width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px',
+            borderRadius: 'var(--radius-sm)', marginBottom: 4, textAlign: 'left', cursor: 'pointer',
+            background: active === n.id ? 'var(--orange-glow)' : 'transparent',
+            color: active === n.id ? 'var(--orange-light)' : 'var(--text-secondary)',
+            fontWeight: active === n.id ? 600 : 400, fontSize: '0.9rem', fontFamily: 'inherit',
+            transition: 'all 0.2s', border: active === n.id ? '1px solid rgba(249,115,22,0.2)' : '1px solid transparent'
+          }}>
+            <span style={{ fontSize: '1.1rem' }}>{n.icon}</span>{n.label}
+          </button>
+        ) : (
           <a key={n.id} href={n.href} style={{
             display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px',
             borderRadius: 'var(--radius-sm)', marginBottom: 4, textDecoration: 'none',
@@ -544,7 +553,7 @@ function Sidebar({ active }) {
         }}
           onMouseEnter={e => { e.currentTarget.style.color = '#f87171'; e.currentTarget.style.background = 'rgba(239,68,68,0.06)' }}
           onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.background = 'transparent' }}
-          onClick={() => localStorage.removeItem('mb_user')}
+          onClick={() => { void endSession() }}
         >
           <span>🚪</span> Log Out
         </Link>
@@ -555,6 +564,7 @@ function Sidebar({ active }) {
 
 /* ─── Main Dashboard Page ────────────────────────────────────── */
 export default function DonorDashboard() {
+  const currentUser = getCurrentUser()
   const [showModal, setShowModal] = useState(false)
   const [donations, setDonations] = useState([])
   const [loading, setLoading] = useState(true)
@@ -716,7 +726,7 @@ export default function DonorDashboard() {
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: 'transparent' }}>
-      <Sidebar active="dashboard" />
+      <Sidebar active="dashboard" onNewDonation={() => setShowModal(true)} />
 
       {/* Main */}
       <main style={{ flex: 1, overflow: 'auto' }}>
@@ -730,7 +740,7 @@ export default function DonorDashboard() {
         }}>
           <div>
             <h1 style={{ fontFamily: 'Space Grotesk,sans-serif', fontSize: '1.3rem', fontWeight: 700, marginBottom: 2 }}>
-              Good evening, {currentUser.name.split(' ')[0]} 👋
+              Good evening, {(currentUser?.name || 'there').split(' ')[0]} 👋
             </h1>
             <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
               {activeDonations.some(d => d.status === 'RESCUE_TRIGGERED')
@@ -922,6 +932,7 @@ export default function DonorDashboard() {
       {/* Modal */}
       {showModal && (
         <NewDonationModal
+          currentUser={currentUser}
           onClose={() => setShowModal(false)}
           onSuccess={() => fetchDonations(false)}
         />

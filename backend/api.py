@@ -10,16 +10,16 @@ from datetime import datetime, timezone
 from itertools import combinations
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
 from database import connect
+from auth import get_current_user
 
 router = APIRouter()
 
 
 class DonationCreate(BaseModel):
-    donor_id: str = Field(min_length=1)
     food_name: str = Field(min_length=1, max_length=120)
     quantity: int = Field(gt=0, le=100_000)
     unit: str = Field(min_length=1, max_length=24)
@@ -189,6 +189,27 @@ def _user(conn: sqlite3.Connection, user_id: str, role: str | None = None) -> sq
     return row
 
 
+def _require_role(current_user: dict[str, Any], *roles: str) -> None:
+    if current_user.get("role") not in roles:
+        raise HTTPException(status_code=403, detail="Your account role is not allowed to perform this action.")
+
+
+def _can_view_donation(conn: sqlite3.Connection, donation_id: str, current_user: dict[str, Any]) -> bool:
+    role = current_user["role"]
+    if role == "coordinator":
+        return True
+    if role == "donor":
+        return conn.execute("SELECT 1 FROM donations WHERE id = ? AND donor_id = ?", (donation_id, current_user["id"])).fetchone() is not None
+    return conn.execute(
+        """SELECT 1 FROM donations d WHERE d.id = ? AND (
+             d.matched_recipient_id = ? OR EXISTS (
+               SELECT 1 FROM rescues r JOIN rescue_splits s ON s.rescue_id = r.id
+               WHERE r.donation_id = d.id AND s.recipient_id = ?
+             ))""",
+        (donation_id, current_user["id"], current_user["id"]),
+    ).fetchone() is not None
+
+
 def _event_exists(conn: sqlite3.Connection, donation_id: str, event_type: str,
                   recipient_id: str, split_id: str | None = None) -> bool:
     rows = conn.execute(
@@ -326,19 +347,26 @@ def _split_summary(conn: sqlite3.Connection, row: sqlite3.Row) -> dict[str, Any]
 
 
 @router.get("/recipients")
-def list_recipients() -> dict[str, list[dict[str, Any]]]:
+def list_recipients(current_user: dict[str, Any] = Depends(get_current_user)) -> dict[str, list[dict[str, Any]]]:
     """List recipient organizations without exposing credentials or email."""
+    _require_role(current_user, "donor", "coordinator")
     with connect() as conn:
         rows = _recipient_rows(conn)
     return {"items": [_recipient(row) for row in rows]}
 
 
 @router.get("/donations")
-def list_donations(donor_id: str | None = Query(default=None, min_length=1)) -> dict[str, list[dict[str, Any]]]:
-    """List all donations, or restrict results to one seeded donor."""
+def list_donations(
+    donor_id: str | None = Query(default=None, min_length=1),
+    current_user: dict[str, Any] = Depends(get_current_user),
+) -> dict[str, list[dict[str, Any]]]:
+    """List only records visible to the authenticated user's role."""
+    role = current_user["role"]
+    if role == "donor" and donor_id not in (None, current_user["id"]):
+        raise HTTPException(status_code=403, detail="Donors can only view their own donations.")
+    if role == "recipient" and donor_id is not None:
+        raise HTTPException(status_code=403, detail="Recipients cannot filter donations by donor.")
     with connect() as conn:
-        if donor_id is not None:
-            _user(conn, donor_id, "donor")
         sql = """SELECT d.id, d.donor_id, donor.organization AS donor_name,
                         d.food_name, d.quantity, d.unit, d.status, d.created_at,
                         d.pickup_deadline, d.latitude, d.longitude,
@@ -348,7 +376,17 @@ def list_donations(donor_id: str | None = Query(default=None, min_length=1)) -> 
                  FROM donations d JOIN users donor ON donor.id = d.donor_id
                  LEFT JOIN users recipient ON recipient.id = d.matched_recipient_id"""
         params: tuple[str, ...] = ()
-        if donor_id is not None:
+        if role == "donor":
+            sql += " WHERE d.donor_id = ?"
+            params = (current_user["id"],)
+        elif role == "recipient":
+            sql += """ WHERE d.matched_recipient_id = ? OR EXISTS (
+                SELECT 1 FROM rescues r JOIN rescue_splits s ON s.rescue_id = r.id
+                WHERE r.donation_id = d.id AND s.recipient_id = ?
+            )"""
+            params = (current_user["id"], current_user["id"])
+        elif donor_id is not None:
+            _user(conn, donor_id, "donor")
             sql += " WHERE d.donor_id = ?"
             params = (donor_id,)
         sql += " ORDER BY d.created_at DESC, d.id DESC"
@@ -357,9 +395,11 @@ def list_donations(donor_id: str | None = Query(default=None, min_length=1)) -> 
 
 
 @router.get("/donations/{donation_id}")
-def get_donation(donation_id: str) -> dict[str, Any]:
+def get_donation(donation_id: str, current_user: dict[str, Any] = Depends(get_current_user)) -> dict[str, Any]:
     """Read a donation with its ordered event history and latest rescue."""
     with connect() as conn:
+        if not _can_view_donation(conn, donation_id, current_user):
+            raise HTTPException(status_code=404, detail="Donation not found.")
         donation = _donation_row(conn, donation_id)
         event_rows = conn.execute(
             """SELECT id, donation_id, event_type, description, occurred_at,
@@ -394,7 +434,8 @@ def get_donation(donation_id: str) -> dict[str, Any]:
 
 
 @router.post("/donations", status_code=status.HTTP_201_CREATED)
-def create_donation(payload: DonationCreate) -> dict[str, Any]:
+def create_donation(payload: DonationCreate, current_user: dict[str, Any] = Depends(get_current_user)) -> dict[str, Any]:
+    _require_role(current_user, "donor")
     deadline = _parse_future_datetime(payload.pickup_deadline)
     food_name = payload.food_name.strip()
     unit = payload.unit.strip()
@@ -405,7 +446,7 @@ def create_donation(payload: DonationCreate) -> dict[str, Any]:
     created_at = _now()
     with connect() as conn:
         with conn:
-            donor = _user(conn, payload.donor_id, "donor")
+            donor = _user(conn, current_user["id"], "donor")
             conn.execute(
                 """INSERT INTO donations
                    (id, donor_id, food_name, quantity, unit, status, created_at,
@@ -425,13 +466,16 @@ def create_donation(payload: DonationCreate) -> dict[str, Any]:
 
 
 @router.post("/donations/{donation_id}/match")
-def match_donation(donation_id: str, payload: MatchRequest) -> dict[str, Any]:
+def match_donation(donation_id: str, payload: MatchRequest, current_user: dict[str, Any] = Depends(get_current_user)) -> dict[str, Any]:
+    _require_role(current_user, "donor", "coordinator")
     with connect() as conn:
         with conn:
             donation = _donation_row(conn, donation_id)
+            if current_user["role"] == "donor" and donation["donor_id"] != current_user["id"]:
+                raise HTTPException(status_code=404, detail="Donation not found.")
             if donation["status"] != "PENDING":
                 raise HTTPException(status_code=409, detail="Only pending donations can be matched.")
-            actor_id = _actor(conn, payload.actor_id, "U-C01")
+            actor_id = current_user["id"]
             deadline = _parse_datetime(donation["pickup_deadline"])
             candidates = [
                 row for row in _recipient_rows(conn)
@@ -476,7 +520,8 @@ def match_donation(donation_id: str, payload: MatchRequest) -> dict[str, Any]:
 
 
 @router.post("/donations/{donation_id}/cancel")
-def cancel_donation(donation_id: str, payload: CancelRequest) -> dict[str, Any]:
+def cancel_donation(donation_id: str, payload: CancelRequest, current_user: dict[str, Any] = Depends(get_current_user)) -> dict[str, Any]:
+    _require_role(current_user, "recipient", "coordinator")
     reason = payload.reason.strip()
     if not reason:
         raise HTTPException(status_code=400, detail="Cancellation reason is required.")
@@ -486,13 +531,16 @@ def cancel_donation(donation_id: str, payload: CancelRequest) -> dict[str, Any]:
             donation = _donation_row(conn, donation_id)
             if donation["status"] != "MATCHED":
                 raise HTTPException(status_code=409, detail="Only a matched donation can be cancelled.")
-            if donation["matched_recipient_id"] != payload.recipient_id:
+            recipient_id = current_user["id"] if current_user["role"] == "recipient" else payload.recipient_id
+            if current_user["role"] == "recipient" and payload.recipient_id not in (None, recipient_id):
+                raise HTTPException(status_code=403, detail="You can only cancel your own assigned pickup.")
+            if donation["matched_recipient_id"] != recipient_id:
                 raise HTTPException(status_code=409, detail="Recipient is not the current matched recipient.")
-            actor_id = _actor(conn, payload.actor_id, "U-C01")
-            failed_recipient = _user(conn, payload.recipient_id, "recipient")
+            actor_id = current_user["id"]
+            failed_recipient = _user(conn, recipient_id, "recipient")
             now = _now()
             deadline = _parse_datetime(donation["pickup_deadline"])
-            candidates = _recipient_rows(conn, {payload.recipient_id}) if deadline > datetime.now(timezone.utc) else []
+            candidates = _recipient_rows(conn, {recipient_id}) if deadline > datetime.now(timezone.utc) else []
             strategy, allocations = _split_plan(candidates, donation)
             rescue_id = _new_id("R")
             recovery_ok = strategy is not None
@@ -561,14 +609,15 @@ def cancel_donation(donation_id: str, payload: CancelRequest) -> dict[str, Any]:
 
 
 @router.post("/donations/{donation_id}/accept")
-def accept_donation(donation_id: str, payload: AcceptRequest) -> dict[str, Any]:
+def accept_donation(donation_id: str, payload: AcceptRequest, current_user: dict[str, Any] = Depends(get_current_user)) -> dict[str, Any]:
+    _require_role(current_user, "recipient")
+    if payload.recipient_id != current_user["id"]:
+        raise HTTPException(status_code=403, detail="You can only accept pickups assigned to your account.")
     with connect() as conn:
         with conn:
             donation = _donation_row(conn, donation_id)
-            recipient = _user(conn, payload.recipient_id, "recipient")
-            actor_id = _actor(conn, payload.actor_id, recipient["id"])
-            if actor_id != recipient["id"] and actor_id != "U-C01":
-                raise HTTPException(status_code=409, detail="Actor must be the recipient or coordinator.")
+            recipient = _user(conn, current_user["id"], "recipient")
+            actor_id = current_user["id"]
 
             split_data = None
             metadata: dict[str, Any] = {"recipient_id": recipient["id"]}
@@ -603,14 +652,15 @@ def accept_donation(donation_id: str, payload: AcceptRequest) -> dict[str, Any]:
 
 
 @router.post("/donations/{donation_id}/handover")
-def confirm_handover(donation_id: str, payload: HandoverRequest) -> dict[str, Any]:
+def confirm_handover(donation_id: str, payload: HandoverRequest, current_user: dict[str, Any] = Depends(get_current_user)) -> dict[str, Any]:
+    _require_role(current_user, "recipient")
+    if payload.recipient_id != current_user["id"]:
+        raise HTTPException(status_code=403, detail="You can only confirm handovers assigned to your account.")
     with connect() as conn:
         with conn:
             donation = _donation_row(conn, donation_id)
-            recipient = _user(conn, payload.recipient_id, "recipient")
-            actor_id = _actor(conn, payload.actor_id, recipient["id"])
-            if actor_id not in (recipient["id"], "U-C01"):
-                raise HTTPException(status_code=409, detail="Actor must be the recipient or coordinator.")
+            recipient = _user(conn, current_user["id"], "recipient")
+            actor_id = current_user["id"]
 
             split_data = None
             if payload.split_id:

@@ -1,33 +1,45 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
+import { ArrowRight, Building2, CircleAlert, Compass, Utensils } from 'lucide-react'
+import { login, saveSession } from '../api/auth.js'
+
+const ROLE_HOME = { donor: '/donor', recipient: '/recipient', coordinator: '/coordinator' }
+const DEMO_ACCOUNTS = {
+  donor: { label: 'Donor', Icon: Utensils, email: 'harshal@sunrise.in', password: 'MealBridgeDonor2026!', description: 'Offer surplus food' },
+  recipient: { label: 'NGO', Icon: Building2, email: 'anita@ashatrust.org', password: 'MealBridgeNGO2026!', description: 'Request food for your community' },
+  coordinator: { label: 'Coordinator', Icon: Compass, email: 'admin@mealbridge.in', password: 'MealBridgeCoordinator2026!', description: 'Coordinate and monitor rescue' },
+}
 
 export default function LoginPage() {
-  const [role, setRole] = useState('donor')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [selectedRole, setSelectedRole] = useState('donor')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const navigate = useNavigate()
 
-  const roles = [
-    { id: 'donor',       label: 'Donor',       icon: '🍽️', desc: 'Restaurant / Canteen / Hostel' },
-    { id: 'recipient',   label: 'NGO',          icon: '🏠', desc: 'NGO / Shelter / Kitchen' },
-    { id: 'coordinator', label: 'Coordinator',  icon: '🧑‍💼', desc: 'Platform Admin' },
-  ]
+  const selectDemoRole = (role) => {
+    const account = DEMO_ACCOUNTS[role]
+    setSelectedRole(role)
+    setEmail(account.email)
+    setPassword(account.password)
+    setError('')
+  }
 
   const handleLogin = async (e) => {
     e.preventDefault()
     setError('')
     if (!email || !password) { setError('Please fill in all fields.'); return }
     setLoading(true)
-    // Simulate API call — replace with real API later
-    await new Promise(r => setTimeout(r, 1200))
-    setLoading(false)
-    // Store mock auth
-    localStorage.setItem('mb_user', JSON.stringify({ email, role, name: email.split('@')[0] }))
-    if (role === 'donor')       navigate('/donor')
-    if (role === 'recipient')   navigate('/recipient')
-    if (role === 'coordinator') navigate('/coordinator')
+    try {
+      const session = await login({ email, password })
+      saveSession(session)
+      navigate(ROLE_HOME[session.user.role] || '/', { replace: true })
+    } catch (loginError) {
+      setError(loginError.message || 'Could not sign in. Please try again.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -48,7 +60,7 @@ export default function LoginPage() {
         backgroundSize: '50px 50px'
       }} />
 
-      <div style={{ position: 'relative', zIndex: 1, width: '100%', maxWidth: 460 }}>
+      <div style={{ position: 'relative', zIndex: 1, width: '100%', maxWidth: 520 }}>
 
         {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: 36 }}>
@@ -58,7 +70,7 @@ export default function LoginPage() {
               background: 'linear-gradient(135deg,#f97316,#ea580c)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: '1.4rem', boxShadow: '0 4px 20px rgba(249,115,22,0.4)'
-            }}>🍱</div>
+            }}><Utensils size={19} strokeWidth={1.8} color="#fff" /></div>
             <span style={{ fontFamily: 'Space Grotesk,sans-serif', fontWeight: 700, fontSize: '1.4rem', color: 'var(--text-primary)' }}>
               Meal<span className="gradient-text-orange">Bridge</span>
             </span>
@@ -71,33 +83,30 @@ export default function LoginPage() {
         {/* Card */}
         <div style={{
           background: 'rgba(17,24,39,0.8)', border: '1px solid var(--border)',
-          borderRadius: 'var(--radius-xl)', padding: '36px 32px',
+          borderRadius: 'var(--radius-xl)', padding: '30px 32px',
           backdropFilter: 'blur(20px)',
           boxShadow: '0 25px 60px rgba(0,0,0,0.4)'
         }}>
 
-          {/* Role selector */}
-          <div style={{ marginBottom: 28 }}>
-            <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)',
-              textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>
-              I am a...
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
-              {roles.map(r => (
-                <button key={r.id} id={`role-${r.id}`} onClick={() => setRole(r.id)} style={{
-                  padding: '12px 8px', borderRadius: 'var(--radius-md)', cursor: 'pointer',
-                  border: `1.5px solid ${role === r.id ? '#f97316' : 'var(--border)'}`,
-                  background: role === r.id ? 'var(--orange-glow)' : 'rgba(255,255,255,0.02)',
-                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
-                  transition: 'all 0.2s ease'
-                }}>
-                  <span style={{ fontSize: '1.4rem' }}>{r.icon}</span>
-                  <span style={{
-                    fontSize: '0.78rem', fontWeight: 700,
-                    color: role === r.id ? 'var(--orange-light)' : 'var(--text-secondary)'
-                  }}>{r.label}</span>
+          <div style={{ marginBottom: 22 }}>
+            <div style={{ color: 'var(--text-secondary)', fontSize: '0.82rem', fontWeight: 600, marginBottom: 10 }}>Choose a demo account</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 9 }}>
+              {Object.entries(DEMO_ACCOUNTS).map(([role, account]) => {
+                const active = selectedRole === role
+                return <button key={role} type="button" onClick={() => selectDemoRole(role)} aria-pressed={active}
+                  style={{ textAlign: 'left', minHeight: 88, padding: '11px 10px', cursor: 'pointer',
+                    borderRadius: 'var(--radius-md)', border: `1px solid ${active ? 'rgba(249,115,22,0.75)' : 'var(--border)'}`,
+                    background: active ? 'rgba(249,115,22,0.12)' : 'rgba(255,255,255,0.025)', color: 'var(--text-primary)',
+                    boxShadow: active ? '0 0 0 1px rgba(249,115,22,0.18)' : 'none' }}>
+                  <span style={{ display: 'block', marginBottom: 5 }}><account.Icon size={19} strokeWidth={1.7} color={active ? '#fb923c' : 'var(--text-muted)'} /></span>
+                  <strong style={{ display: 'block', fontSize: '0.8rem' }}>{account.label}</strong>
+                  <span style={{ display: 'block', marginTop: 3, color: 'var(--text-muted)', fontSize: '0.66rem', lineHeight: 1.3 }}>{account.description}</span>
                 </button>
-              ))}
+              })}
+            </div>
+            <div style={{ marginTop: 12, padding: '10px 12px', borderRadius: 'var(--radius-md)', background: 'rgba(249,115,22,0.07)', border: '1px solid rgba(249,115,22,0.18)', color: 'var(--text-secondary)', fontSize: '0.76rem', lineHeight: 1.65 }}>
+              <strong style={{ color: 'var(--orange-light)' }}>{DEMO_ACCOUNTS[selectedRole].label} demo credentials</strong><br />
+              {DEMO_ACCOUNTS[selectedRole].email} / <strong>{DEMO_ACCOUNTS[selectedRole].password}</strong>
             </div>
           </div>
 
@@ -110,7 +119,7 @@ export default function LoginPage() {
                 id="login-email"
                 type="email"
                 value={email}
-                onChange={e => setEmail(e.target.value)}
+                onChange={e => { setEmail(e.target.value); setSelectedRole('') }}
                 placeholder="you@organisation.com"
                 style={{
                   width: '100%', padding: '13px 16px',
@@ -132,7 +141,7 @@ export default function LoginPage() {
                 id="login-password"
                 type="password"
                 value={password}
-                onChange={e => setPassword(e.target.value)}
+                onChange={e => { setPassword(e.target.value); setSelectedRole('') }}
                 placeholder="••••••••"
                 style={{
                   width: '100%', padding: '13px 16px',
@@ -153,7 +162,7 @@ export default function LoginPage() {
                 background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)',
                 borderRadius: 'var(--radius-sm)', padding: '10px 14px',
                 color: '#f87171', fontSize: '0.85rem', marginBottom: 16
-              }}>⚠️ {error}</div>
+              }}><CircleAlert size={16} style={{ verticalAlign: 'text-bottom', marginRight: 6 }} />{error}</div>
             )}
 
             <button id="login-submit" type="submit" className="btn-primary"
@@ -166,7 +175,7 @@ export default function LoginPage() {
                       display: 'inline-block' }} />
                     Signing in...
                   </span>
-                : '→ Sign In'}
+                : <><ArrowRight size={17} /> Sign In</>}
             </button>
           </form>
 
