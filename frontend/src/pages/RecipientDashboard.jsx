@@ -105,6 +105,10 @@ export default function RecipientDashboard() {
     detailsList.filter(Boolean).forEach(({ donation, events, splits }) => {
       const donationDeadline = donation.pickup_deadline
       const isPastDeadline = donationDeadline ? new Date(donationDeadline).getTime() <= Date.now() : false
+      const hasAnyAcceptance = (events || []).some(e => e.event_type === 'RECIPIENT_ACCEPTED')
+      const eligibleOpenOffer = donation.status === 'MATCHED'
+        && !hasAnyAcceptance
+        && Number(currentRecipient.capacity) >= Number(donation.quantity)
 
       // 1. Direct standard match
       if (donation.matched_recipient_id === recipientId) {
@@ -151,6 +155,17 @@ export default function RecipientDashboard() {
             })
           }
         }
+      } else if (eligibleOpenOffer) {
+        offered.push({
+          key: `${donation.id}-open-offer`,
+          donation,
+          split: null,
+          assignedQuantity: donation.quantity,
+          unit: donation.unit,
+          isSplit: false,
+          deadline: donationDeadline,
+          isPastDeadline,
+        })
       }
 
       // 2. Rescue splits assigned to this recipient
@@ -474,7 +489,7 @@ export default function RecipientDashboard() {
           <SectionHeading
             eyebrow="ACTION REQUIRED"
             title="Available & Offered Pickups"
-            detail={`${offeredItems.length} match${offeredItems.length === 1 ? '' : 'es'} assigned to ${currentRecipient.organization} pending acceptance.`}
+            detail={`${offeredItems.length} open offer${offeredItems.length === 1 ? '' : 's'} your organization has capacity to accept.`}
           />
 
           <div className="donation-feed">
@@ -513,6 +528,9 @@ export default function RecipientDashboard() {
 
                       <p className="donor-line">
                         From <strong>{donation.donor_name || 'Donor'}</strong>
+                        {donation.matched_recipient_id !== recipientId && donation.matched_recipient_name
+                          ? <span> · Engine recommendation: {donation.matched_recipient_name}</span>
+                          : null}
                         {donation.notes ? <span> · Notes: {donation.notes}</span> : null}
                       </p>
 
